@@ -73,7 +73,9 @@ Answer:
 }
 
 export async function POST(req: NextRequest) {
-  const { query } = await req.json();
+  // ✅ Parse request body once
+  const { query, context = [] } = await req.json();
+
   if (!query || typeof query !== "string") {
     return new Response(JSON.stringify({ error: "Missing 'query' string" }), {
       status: 400,
@@ -81,12 +83,17 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const context = "";
-  const prompt = buildPrompt(query, context);
+  // ✅ Build chat context string
+  const chatContext = Array.isArray(context)
+    ? context.map((m: any) => `User: ${m.question}\nAskGobi: ${m.answer}`).join("\n")
+    : "";
+
+  // ✅ Build prompt with context
+  const prompt = buildPrompt(query, chatContext);
 
   console.log(`[API] Streaming response for: "${query}"`);
 
-  // 🧠 Safety: timeout & abort controller
+  // 🧠 Timeout & abort control
   const abortController = new AbortController();
   const timeout = setTimeout(() => {
     if (!abortController.signal.aborted) {
@@ -123,17 +130,13 @@ export async function POST(req: NextRequest) {
         let accumulatedWords = 0;
         const MAX_WORDS = 180;
         let buffer = "";
-        let closed = false; // ✅ prevent double close
+        let closed = false;
 
         const safeClose = () => {
           if (!closed) {
-            try {
-              controller.close();
-              closed = true;
-              console.log("[askLocal] Stream closed cleanly ✅");
-            } catch {
-              console.warn("[askLocal] Attempted to close twice — ignored.");
-            }
+            controller.close();
+            closed = true;
+            console.log("[askLocal] Stream closed cleanly ✅");
           }
         };
 
@@ -151,7 +154,7 @@ export async function POST(req: NextRequest) {
                 const text = String(json.response || "");
                 buffer += text;
 
-                // 🚫 banned content
+                // 🚫 Banned content filter
                 for (const p of BANNED_PATTERNS) {
                   if (p.test(text)) {
                     controller.enqueue(
@@ -163,7 +166,6 @@ export async function POST(req: NextRequest) {
                       )
                     );
                     safeClose();
-                    console.warn("[askLocal] Blocked banned content.");
                     clearTimeout(timeout);
                     return;
                   }
@@ -187,7 +189,6 @@ export async function POST(req: NextRequest) {
                     buffer.lastIndexOf(".") > 0
                       ? buffer.lastIndexOf(".") + 1
                       : buffer.length;
-
                   let finalText = buffer.slice(0, cutoff).trim();
                   if (!finalText.endsWith(".")) finalText += ".";
                   finalText += "\n💡 **End of summary.**";
@@ -211,7 +212,7 @@ export async function POST(req: NextRequest) {
           console.error("Stream error:", err);
         } finally {
           clearTimeout(timeout);
-          safeClose(); // ✅ only one close
+          safeClose();
         }
       },
     }),
