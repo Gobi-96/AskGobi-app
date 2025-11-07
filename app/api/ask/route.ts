@@ -95,12 +95,12 @@ export async function POST(req: NextRequest) {
     }
   }, 20000);
 
-  const remote = await fetch("http://localhost:11434/api/generate", {
+  const remote = await fetch("http://127.0.0.1:11434/api/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     signal: abortController.signal,
     body: JSON.stringify({
-      model: "phi3:mini",
+      model: "llama3",
       prompt,
       stream: true,
       options: { temperature: 0.4, top_p: 0.9, num_predict: 180 },
