@@ -241,28 +241,27 @@ export default function HomePage() {
 
     {/* Scrollable middle section */}
     <div className="flex-1 overflow-y-auto pt-20 pb-28 px-4 max-w-3xl mx-auto w-full">
-      {messages.length === 0 && !thinking ? (
-        <div className="flex flex-col items-center text-center space-y-8 mt-20">
-          <h1 className="text-6xl font-bold">
-            <span className={theme === "light" ? "text-gray-900" : "text-white"}>Ask</span>
-            <span className="text-blue-500">Gobi</span>
-          </h1>
-          <p className={`text-lg sm:text-xl font-medium ${
-            theme === "light" ? "text-gray-600" : "text-gray-400"
-          }`}>
-            Answering your questions short & crisp.
-          </p>
-          <div className="space-y-3 text-gray-400 mt-4">
-            <p>Examples you can try:</p>
-            <ul className="space-y-1">
-              <li>• Tell me something about Pondicherry.</li>
-              <li>• What’s the capital of Japan?</li>
-              <li>• Who invented electricity?</li>
-              <li>• Who created you?</li>
-            </ul>
-          </div>
-        </div>
-      ) : (
+    {messages.length === 0 && !thinking ? (
+  <div className="flex flex-col items-center text-center space-y-6 mt-24">
+    <p
+      className={`text-lg sm:text-xl font-medium ${
+        theme === "light" ? "text-gray-600" : "text-gray-400"
+      }`}
+    >
+      Answering your questions short & crisp.
+    </p>
+
+    <div className="space-y-3 text-gray-400 mt-2">
+      <p>Examples you can try:</p>
+      <ul className="space-y-1">
+        <li>• Tell me something about Pondicherry.</li>
+        <li>• What’s the capital of Japan?</li>
+        <li>• Who invented electricity?</li>
+        <li>• Who created you?</li>
+      </ul>
+    </div>
+  </div>
+) : (
         <div className="w-full mt-6">
           {messages.map((msg, i) => (
             <div key={i} className="mb-8">
