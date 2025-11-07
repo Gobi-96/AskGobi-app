@@ -304,146 +304,146 @@ async function askExample(exampleText: string) {
         )}
       </AnimatePresence>
 
-  {/* 🧠 MAIN CHAT CONTAINER */}
-  <div
-    className={`flex flex-col h-screen transition-all duration-700 ${
-      showIntro ? "opacity-0 pointer-events-none translate-y-10" : "opacity-100 translate-y-0"
-    }`}
-  >
+{/* 🧠 MAIN CHAT CONTAINER — only render after Try Now */}
+{!showIntro && (
+  <>
+    {/* Chat container */}
+    <div className="flex flex-col h-screen transition-all duration-700 opacity-100 translate-y-0">
 
-    {/* Fixed header */}
-    <header
-      className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4
-      transition-all duration-300 backdrop-blur-md ${
-        theme === "light"
-          ? "bg-white/80 border-b border-gray-200 text-gray-900"
-          : "bg-[#0d0d0d]/80 border-b border-gray-800 text-white"
-      }`}
-    >
-      <h1 className="text-3xl font-bold">
-        <span className={theme === "light" ? "text-gray-900" : "text-white"}>Ask</span>
-        <span className="text-blue-500">Gobi</span>
-      </h1>
-      <button
-        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-        className={`p-2 rounded-full transition-colors border ${
+      {/* Fixed header */}
+      <header
+        className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4
+        transition-all duration-300 backdrop-blur-md ${
           theme === "light"
-            ? "bg-gray-200 hover:bg-gray-300 border-gray-300 text-gray-800"
-            : "bg-gray-700 hover:bg-gray-600 border-gray-600 text-yellow-300"
+            ? "bg-white/80 border-b border-gray-200 text-gray-900"
+            : "bg-[#0d0d0d]/80 border-b border-gray-800 text-white"
         }`}
       >
-        {mounted && (theme === "dark" ? <Sun size={20} /> : <Moon size={20} />)}
-      </button>
-    </header>
+        <h1 className="text-3xl font-bold">
+          <span className={theme === "light" ? "text-gray-900" : "text-white"}>Ask</span>
+          <span className="text-blue-500">Gobi</span>
+        </h1>
+        <button
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          className={`p-2 rounded-full transition-colors border ${
+            theme === "light"
+              ? "bg-gray-200 hover:bg-gray-300 border-gray-300 text-gray-800"
+              : "bg-gray-700 hover:bg-gray-600 border-gray-600 text-yellow-300"
+          }`}
+        >
+          {mounted && (theme === "dark" ? <Sun size={20} /> : <Moon size={20} />)}
+        </button>
+      </header>
 
-    {/* Scrollable middle section */}
-    <div className="flex-1 overflow-y-auto pt-20 pb-28 px-4 max-w-3xl mx-auto w-full">
-    {messages.length === 0 && !thinking ? (
-  <div className="flex flex-col items-center text-center space-y-6 mt-24">
-    <p
-      className={`text-lg sm:text-xl font-medium ${
-        theme === "light" ? "text-gray-600" : "text-gray-400"
-      }`}
-    >
-      Answering your questions short & crisp.
-    </p>
+      {/* Scrollable middle section */}
+      <div className="flex-1 overflow-y-auto pt-20 pb-28 px-4 max-w-3xl mx-auto w-full">
+        {messages.length === 0 && !thinking ? (
+          <div className="flex flex-col items-center text-center space-y-6 mt-24">
+            <p
+              className={`text-lg sm:text-xl font-medium ${
+                theme === "light" ? "text-gray-600" : "text-gray-400"
+              }`}
+            >
+              Answering your questions short & crisp.
+            </p>
 
-    <div className="space-y-3 text-gray-400 mt-2">
-      <p>Examples you can try:</p>
-      <ul className="space-y-2">
-  {[
-    "Tell me something about Pondicherry.",
-    "What’s the capital of Japan?",
-    "Who invented electricity?",
-    "Who created you?",
-  ].map((example, index) => (
-    <li key={index}>
-      <button
-        onClick={(e) => {
-          e.preventDefault();
-          askExample(example); // ✅ Directly call the new helper
-        }}
-        className="text-blue-400 hover:text-blue-300 hover:underline transition-colors"
-      >
-        • {example}
-      </button>
-    </li>
-  ))}
-</ul>
-    </div>
-  </div>
-) : (
-        <div className="w-full mt-6">
-          {messages.map((msg, i) => (
-            <div key={i} className="mb-8">
-              <h2 className="text-2xl font-semibold mb-3">{msg.question}</h2>
-              <div
-                className={`p-6 rounded-2xl leading-relaxed shadow-lg border whitespace-pre-wrap space-y-2 ${
-                  theme === "light"
-                    ? "bg-gray-100 border-gray-200"
-                    : "bg-[#111] border-gray-800"
-                }`}
-              >
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {msg.answer}
-                </ReactMarkdown>
-              </div>
-              {(thinking || isTyping) && i === messages.length - 1 && (
-                <div className="mt-2 text-purple-400 animate-pulse text-sm">
-                  {isTyping ? "⌨️ Typing..." : "🧠 Thinking..."}
-                </div>
-              )}
+            <div className="space-y-3 text-gray-400 mt-2">
+              <p>Examples you can try:</p>
+              <ul className="space-y-2">
+                {[
+                  "Tell me something about Pondicherry.",
+                  "What’s the capital of Japan?",
+                  "Who created you?",
+                ].map((example, index) => (
+                  <li key={index}>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        askExample(example);
+                      }}
+                      className="text-blue-400 hover:text-blue-300 hover:underline transition-colors"
+                    >
+                      • {example}
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </div>
-          ))}
-        </div>
-      )}
-      <div ref={chatEndRef} />
+          </div>
+        ) : (
+          <div className="w-full mt-6">
+            {messages.map((msg, i) => (
+              <div key={i} className="mb-8">
+                <h2 className="text-2xl font-semibold mb-3">{msg.question}</h2>
+                <div
+                  className={`p-6 rounded-2xl leading-relaxed shadow-lg border whitespace-pre-wrap space-y-2 ${
+                    theme === "light"
+                      ? "bg-gray-100 border-gray-200"
+                      : "bg-[#111] border-gray-800"
+                  }`}
+                >
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {msg.answer}
+                  </ReactMarkdown>
+                </div>
+                {(thinking || isTyping) && i === messages.length - 1 && (
+                  <div className="mt-2 text-purple-400 animate-pulse text-sm">
+                    {isTyping ? "⌨️ Typing..." : "🧠 Thinking..."}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        <div ref={chatEndRef} />
+      </div>
     </div>
-  </div>
 
-  {/* Fixed bottom input bar */}
-  <form
-    onSubmit={askGobi}
-    className={`fixed bottom-0 left-0 right-0 p-4 shadow-xl backdrop-blur-md z-40 ${
-      theme === "light" ? "bg-white/80" : "bg-[#0d0d0d]/80"
-    }`}
-  >
-    <div
-      className={`max-w-3xl mx-auto flex items-center gap-2 border rounded-2xl px-4 py-3 transition-colors ${
-        theme === "light"
-          ? "border-gray-300 bg-gray-100"
-          : "border-gray-700 bg-[#111]"
+    {/* Fixed bottom input bar */}
+    <form
+      onSubmit={askGobi}
+      className={`fixed bottom-0 left-0 right-0 p-4 shadow-xl backdrop-blur-md z-40 ${
+        theme === "light" ? "bg-white/80" : "bg-[#0d0d0d]/80"
       }`}
     >
-      <input
-        type="text"
-        placeholder="Ask anything..."
-        value={question}
-        onChange={(e) => setQuestion(e.target.value)}
-        className={`flex-1 bg-transparent text-base sm:text-lg focus:outline-none ${
+      <div
+        className={`max-w-3xl mx-auto flex items-center gap-2 border rounded-2xl px-4 py-3 transition-colors ${
           theme === "light"
-            ? "text-gray-900 placeholder-gray-500"
-            : "text-white placeholder-gray-500"
-        }`}
-      />
-      <button
-        type={thinking ? "button" : "submit"}
-        onClick={() => {
-          if (thinking && abortController) {
-            abortController.abort();
-            setThinking(false);
-          }
-        }}
-        className={`min-w-[90px] h-[44px] flex items-center justify-center rounded-xl font-semibold transition text-white ${
-          thinking
-            ? "bg-red-600 hover:bg-red-700 animate-pulse"
-            : "bg-blue-600 hover:bg-blue-700"
+            ? "border-gray-300 bg-gray-100"
+            : "border-gray-700 bg-[#111]"
         }`}
       >
-        {thinking ? "Stop" : "Ask"}
-      </button>
-    </div>
-  </form>
-</main>
+        <input
+          type="text"
+          placeholder="Ask anything..."
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          className={`flex-1 bg-transparent text-base sm:text-lg focus:outline-none ${
+            theme === "light"
+              ? "text-gray-900 placeholder-gray-500"
+              : "text-white placeholder-gray-500"
+          }`}
+        />
+        <button
+          type={thinking ? "button" : "submit"}
+          onClick={() => {
+            if (thinking && abortController) {
+              abortController.abort();
+              setThinking(false);
+            }
+          }}
+          className={`min-w-[90px] h-[44px] flex items-center justify-center rounded-xl font-semibold transition text-white ${
+            thinking
+              ? "bg-red-600 hover:bg-red-700 animate-pulse"
+              : "bg-blue-600 hover:bg-blue-700"
+          }`}
+        >
+          {thinking ? "Stop" : "Ask"}
+        </button>
+      </div>
+    </form>
+  </>
+)}
+    </main>
   );
 }
