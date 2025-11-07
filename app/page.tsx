@@ -166,6 +166,103 @@ export default function HomePage() {
       console.log("[UI] Stream ended — typing stopped ✅");
     }
   }
+  // 🧠 Helper to instantly trigger an example question (bypass input)
+async function askExample(exampleText: string) {
+  if (thinking) return;
+
+  const newMessage = { question: exampleText, answer: "" };
+  setMessages((prev) => [...prev, newMessage]);
+  setThinking(true);
+  setIsTyping(false);
+
+  const controller = new AbortController();
+  setAbortController(controller);
+
+  try {
+    // show initial thinking state
+    setMessages((prev) =>
+      prev.map((m, i) =>
+        i === prev.length - 1
+          ? { ...m, answer: "💭 Deeply thinking... firing neural circuits..." }
+          : m
+      )
+    );
+
+    await new Promise((r) => setTimeout(r, 800));
+
+    const res = await fetch("/api/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        query: exampleText,
+        context: messages.slice(-3),
+      }),
+    });
+
+    const reader = res.body?.getReader();
+    const decoder = new TextDecoder();
+    if (!reader) throw new Error("No stream");
+
+    let partial = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split("\n").filter(Boolean);
+
+      for (const line of lines) {
+        try {
+          const json = JSON.parse(line);
+          if (json.response) {
+            partial += json.response;
+
+            let cleaned = sanitize(partial);
+            cleaned = truncateWords(cleaned, 180);
+            const formatted = formatToBullets(cleaned);
+
+            setMessages((prev) =>
+              prev.map((m, i) =>
+                i === prev.length - 1 ? { ...m, answer: formatted } : m
+              )
+            );
+
+            if (cleaned.endsWith(" …")) {
+              reader.cancel();
+              break;
+            }
+          }
+        } catch {}
+      }
+    }
+
+    let cleanedEnd = sanitize(partial.trim());
+    if (!/[.?!…]$/.test(cleanedEnd)) cleanedEnd += ".";
+    const finalCleaned = formatToBullets(truncateWords(cleanedEnd, 180));
+
+    setMessages((prev) =>
+      prev.map((m, i) =>
+        i === prev.length - 1 ? { ...m, answer: finalCleaned } : m
+      )
+    );
+  } catch (err: any) {
+    if (err.name === "AbortError") {
+      setMessages((prev) =>
+        prev.map((m, i) =>
+          i === prev.length - 1
+            ? { ...m, answer: "🛑 Stopped by user." }
+            : m
+        )
+      );
+    }
+  } finally {
+    setThinking(false);
+    setIsTyping(false);
+    setAbortController(null);
+  }
+}
+
 
   if (!mounted) return null;
 
@@ -253,12 +350,26 @@ export default function HomePage() {
 
     <div className="space-y-3 text-gray-400 mt-2">
       <p>Examples you can try:</p>
-      <ul className="space-y-1">
-        <li>• Tell me something about Pondicherry.</li>
-        <li>• What’s the capital of Japan?</li>
-        <li>• Who invented electricity?</li>
-        <li>• Who created you?</li>
-      </ul>
+      <ul className="space-y-2">
+  {[
+    "Tell me something about Pondicherry.",
+    "What’s the capital of Japan?",
+    "Who invented electricity?",
+    "Who created you?",
+  ].map((example, index) => (
+    <li key={index}>
+      <button
+        onClick={(e) => {
+          e.preventDefault();
+          askExample(example); // ✅ Directly call the new helper
+        }}
+        className="text-blue-400 hover:text-blue-300 hover:underline transition-colors"
+      >
+        • {example}
+      </button>
+    </li>
+  ))}
+</ul>
     </div>
   </div>
 ) : (
