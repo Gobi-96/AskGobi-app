@@ -4,6 +4,7 @@ import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { motion, AnimatePresence } from "framer-motion"; // 🆕 add this
 
 interface Message {
   question: string;
@@ -17,6 +18,7 @@ export default function HomePage() {
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [showIntro, setShowIntro] = useState(true); // 🆕
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [isTyping, setIsTyping] = useState(false);
 
@@ -169,168 +171,169 @@ export default function HomePage() {
 
   return (
     <main
-      className={`flex flex-col min-h-screen transition-colors duration-300 ${
+    className={`relative flex flex-col h-screen overflow-hidden transition-colors duration-300 ${
+      theme === "light"
+        ? "bg-white text-gray-900"
+        : "bg-[#0d0d0d] text-gray-100"
+    }`}
+  >
+      {/* 🌟 Intro Landing Overlay */}
+      <AnimatePresence>
+        {showIntro && (
+          <motion.div
+            key="intro"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, y: -200 }}
+            transition={{ duration: 0.8, ease: "easeInOut" }}
+            className="absolute inset-0 z-50 flex flex-col items-center justify-center text-center bg-[#0d0d0d] text-white"
+          >
+            <h1 className="text-6xl font-bold mb-4">
+              <span>Ask</span>
+              <span className="text-blue-500">Gobi</span>
+            </h1>
+            <p className="text-lg sm:text-xl text-gray-400 mb-10 px-6 max-w-lg">
+              Your personal AI Q&amp;A assistant — short, crisp, and factual answers.
+            </p>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowIntro(false)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-semibold shadow-lg"
+            >
+              🚀 Try Now
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+  {/* 🧠 MAIN CHAT CONTAINER */}
+  <div
+    className={`flex flex-col h-screen transition-all duration-700 ${
+      showIntro ? "opacity-0 pointer-events-none translate-y-10" : "opacity-100 translate-y-0"
+    }`}
+  >
+
+    {/* Fixed header */}
+    <header
+      className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4
+      transition-all duration-300 backdrop-blur-md ${
         theme === "light"
-          ? "bg-white text-gray-900"
-          : "bg-[#0d0d0d] text-gray-100"
+          ? "bg-white/80 border-b border-gray-200 text-gray-900"
+          : "bg-[#0d0d0d]/80 border-b border-gray-800 text-white"
       }`}
     >
-      {/* Header */}
-      <header
-        className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4
-        transition-all duration-300 backdrop-blur-md ${
+      <h1 className="text-3xl font-bold">
+        <span className={theme === "light" ? "text-gray-900" : "text-white"}>Ask</span>
+        <span className="text-blue-500">Gobi</span>
+      </h1>
+      <button
+        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+        className={`p-2 rounded-full transition-colors border ${
           theme === "light"
-            ? "bg-white/80 border-b border-gray-200 text-gray-900"
-            : "bg-[#0d0d0d]/80 border-b border-gray-800 text-white"
+            ? "bg-gray-200 hover:bg-gray-300 border-gray-300 text-gray-800"
+            : "bg-gray-700 hover:bg-gray-600 border-gray-600 text-yellow-300"
         }`}
       >
-        <h1
-          className={`text-3xl font-bold transition-colors ${
-            theme === "light" ? "text-gray-900" : "text-white"
-          }`}
-        >
-          <span
-            className={`${theme === "light" ? "text-gray-900" : "text-white"}`}
-          >
-            Ask
-          </span>
-          <span className="text-blue-500">Gobi</span>
-        </h1>
+        {mounted && (theme === "dark" ? <Sun size={20} /> : <Moon size={20} />)}
+      </button>
+    </header>
 
-        
-
-        <button
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className={`p-2 rounded-full transition-colors border ${
-            theme === "light"
-              ? "bg-gray-200 hover:bg-gray-300 border-gray-300 text-gray-800"
-              : "bg-gray-700 hover:bg-gray-600 border-gray-600 text-yellow-300"
-          }`}
-        >
-          {mounted && (theme === "dark" ? <Sun size={20} /> : <Moon size={20} />)}
-        </button>
-      </header>
-
-      {/* Chat Section */}
-      <div className="flex-1 overflow-y-auto px-4 pt-24 pb-32 max-w-3xl w-full mx-auto flex flex-col items-center">
-        {messages.length === 0 && !thinking ? (
-          // 🧠 Initial View
-<div className="flex flex-col items-center text-center space-y-8">
-  <h1
-    className={`text-6xl font-bold transition-colors ${
-      theme === "light" ? "text-gray-900" : "text-white"
-    }`}
-  >
-    <span className={`${theme === "light" ? "text-gray-900" : "text-white"}`}>
-      Ask
-    </span>
-    <span className="text-blue-500">Gobi</span>
-  </h1>
-
-  {/* ✨ Tagline under the title */}
-  <p
-    className={`text-lg sm:text-xl font-medium ${
-      theme === "light" ? "text-gray-600" : "text-gray-400"
-    }`}
-  >
-    Answering your questions short & crisp.
-  </p>
-
-  {/* 🧠 Examples */}
-  <div className="space-y-3 text-gray-400 mt-4">
-    <p>Examples you can try:</p>
-    <ul className="space-y-1">
-    <li>• Tell me something about Pondicherry.</li>
-      <li>• What’s the capital of Japan?</li>
-      <li>• Who invented electricity?</li>
-      <li>• Who created you?</li>
-    </ul>
-  </div>
-</div>
-
-        ) : (
-          // 💬 Chat Messages
-          <div className="w-full mt-10 max-w-3xl">
-            {messages.map((msg, i) => (
-              <div key={i} className="mb-8">
-                <h2 className="text-2xl font-semibold mb-3">{msg.question}</h2>
-                <div
-                  className={`p-6 rounded-2xl leading-relaxed shadow-lg whitespace-pre-wrap space-y-2 border ${
-                    theme === "light"
-                      ? "bg-gray-100 border-gray-200"
-                      : "bg-[#111] border-gray-800"
-                  }`}
-                  style={{ lineHeight: "1.8" }}
-                >
-                  <div className="prose prose-invert max-w-none text-base leading-relaxed whitespace-pre-wrap [&>p]:my-1 [&>ul]:my-2 [&>li]:my-0">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {msg.answer}
-                    </ReactMarkdown>
-                  </div>
-                </div>
-
-                {/* Typing Indicator */}
-                {(thinking || isTyping) && i === messages.length - 1 && (
-  <div className="mt-2 text-purple-400 animate-pulse text-sm">
-    {isTyping ? "⌨️ Typing..." : "🧠 Thinking..."}
-  </div>
-)}
-              </div>
-            ))}
+    {/* Scrollable middle section */}
+    <div className="flex-1 overflow-y-auto pt-20 pb-28 px-4 max-w-3xl mx-auto w-full">
+      {messages.length === 0 && !thinking ? (
+        <div className="flex flex-col items-center text-center space-y-8 mt-20">
+          <h1 className="text-6xl font-bold">
+            <span className={theme === "light" ? "text-gray-900" : "text-white"}>Ask</span>
+            <span className="text-blue-500">Gobi</span>
+          </h1>
+          <p className={`text-lg sm:text-xl font-medium ${
+            theme === "light" ? "text-gray-600" : "text-gray-400"
+          }`}>
+            Answering your questions short & crisp.
+          </p>
+          <div className="space-y-3 text-gray-400 mt-4">
+            <p>Examples you can try:</p>
+            <ul className="space-y-1">
+              <li>• Tell me something about Pondicherry.</li>
+              <li>• What’s the capital of Japan?</li>
+              <li>• Who invented electricity?</li>
+              <li>• Who created you?</li>
+            </ul>
           </div>
-        )}
-        <div ref={chatEndRef} />
-      </div>
+        </div>
+      ) : (
+        <div className="w-full mt-6">
+          {messages.map((msg, i) => (
+            <div key={i} className="mb-8">
+              <h2 className="text-2xl font-semibold mb-3">{msg.question}</h2>
+              <div
+                className={`p-6 rounded-2xl leading-relaxed shadow-lg border whitespace-pre-wrap space-y-2 ${
+                  theme === "light"
+                    ? "bg-gray-100 border-gray-200"
+                    : "bg-[#111] border-gray-800"
+                }`}
+              >
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {msg.answer}
+                </ReactMarkdown>
+              </div>
+              {(thinking || isTyping) && i === messages.length - 1 && (
+                <div className="mt-2 text-purple-400 animate-pulse text-sm">
+                  {isTyping ? "⌨️ Typing..." : "🧠 Thinking..."}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      <div ref={chatEndRef} />
+    </div>
+  </div>
 
-      {/* Input Section */}
-      <form
-        onSubmit={askGobi}
-        className={`fixed bottom-0 left-0 right-0 p-4 shadow-xl backdrop-blur-md ${
-          theme === "light" ? "bg-white/80" : "bg-[#0d0d0d]/80"
+  {/* Fixed bottom input bar */}
+  <form
+    onSubmit={askGobi}
+    className={`fixed bottom-0 left-0 right-0 p-4 shadow-xl backdrop-blur-md z-40 ${
+      theme === "light" ? "bg-white/80" : "bg-[#0d0d0d]/80"
+    }`}
+  >
+    <div
+      className={`max-w-3xl mx-auto flex items-center gap-2 border rounded-2xl px-4 py-3 transition-colors ${
+        theme === "light"
+          ? "border-gray-300 bg-gray-100"
+          : "border-gray-700 bg-[#111]"
+      }`}
+    >
+      <input
+        type="text"
+        placeholder="Ask anything..."
+        value={question}
+        onChange={(e) => setQuestion(e.target.value)}
+        className={`flex-1 bg-transparent text-base sm:text-lg focus:outline-none ${
+          theme === "light"
+            ? "text-gray-900 placeholder-gray-500"
+            : "text-white placeholder-gray-500"
+        }`}
+      />
+      <button
+        type={thinking ? "button" : "submit"}
+        onClick={() => {
+          if (thinking && abortController) {
+            abortController.abort();
+            setThinking(false);
+          }
+        }}
+        className={`min-w-[90px] h-[44px] flex items-center justify-center rounded-xl font-semibold transition text-white ${
+          thinking
+            ? "bg-red-600 hover:bg-red-700 animate-pulse"
+            : "bg-blue-600 hover:bg-blue-700"
         }`}
       >
-        <div
-          className={`max-w-3xl mx-auto flex items-center gap-2 border rounded-2xl px-4 py-3 transition-colors ${
-            theme === "light"
-              ? "border-gray-300 bg-gray-100"
-              : "border-gray-700 bg-[#111]"
-          }`}
-          style={{ overflow: "hidden" }}
-        >
-<input
-  type="text"
-  placeholder="Ask anything..."
-  value={question}
-  onChange={(e) => setQuestion(e.target.value)}
-  className={`flex-1 min-w-0 bg-transparent text-base sm:text-lg focus:outline-none ${
-    theme === "light"
-      ? "text-gray-900 placeholder-gray-500"
-      : "text-white placeholder-gray-500"
-  }`}
-  style={{ flexGrow: 1 }}
-/>
-
-
-<button
-  type={thinking ? "button" : "submit"}
-  onClick={() => {
-    if (thinking && abortController) {
-      abortController.abort();
-      setThinking(false);
-    }
-  }}
-  className={`min-w-[90px] h-[44px] flex items-center justify-center rounded-xl font-semibold transition text-white ${
-    thinking
-      ? "bg-red-600 hover:bg-red-700 animate-pulse"
-      : "bg-blue-600 hover:bg-blue-700"
-  }`}
->
-  {thinking ? "Stop" : "Ask"}
-</button>
-
-
-        </div>
-      </form>
-    </main>
+        {thinking ? "Stop" : "Ask"}
+      </button>
+    </div>
+  </form>
+</main>
   );
 }
