@@ -1,6 +1,21 @@
 // app/api/ask/route.ts
 import { NextRequest } from "next/server";
+import pLimit from "p-limit";  
 export const dynamic = "force-dynamic";
+
+// ✅ Allow up to 4 concurrent AI generations
+const limit = pLimit(4);
+
+// after imports
+const ports = ["11438", "11435", "11436", "11437"];
+let nextPort = 0;
+
+function getNextPort() {
+  const port = ports[nextPort];
+  nextPort = (nextPort + 1) % ports.length;
+  return port;
+}
+
 
 const BANNED_PATTERNS = [
   /openai/i,
@@ -73,7 +88,6 @@ Answer:
 }
 
 export async function POST(req: NextRequest) {
-  // ✅ Parse request body once
   const { query, context = [] } = await req.json();
 
   if (!query || typeof query !== "string") {
@@ -83,145 +97,150 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // ✅ Build chat context string
   const chatContext = Array.isArray(context)
     ? context.map((m: any) => `User: ${m.question}\nAskGobi: ${m.answer}`).join("\n")
     : "";
 
-  // ✅ Build prompt with context
   const prompt = buildPrompt(query, chatContext);
-
   console.log(`[API] Streaming response for: "${query}"`);
 
-  // 🧠 Timeout & abort control
-  const abortController = new AbortController();
-  const timeout = setTimeout(() => {
-    if (!abortController.signal.aborted) {
-      abortController.abort();
-      console.warn("[askLocal] Timeout — model aborted (20s limit).");
-    }
-  }, 20000);
+  // 🚀 Wrap the full generation inside limit() so up to 4 can run concurrently
+  return limit(async () => {
+    const abortController = new AbortController();
+    const timeout = setTimeout(() => {
+      if (!abortController.signal.aborted) {
+        abortController.abort();
+        console.warn("[askLocal] Timeout — model aborted (60s limit).");
+      }
+    }, 60000);
 
-  const remote = await fetch("http://127.0.0.1:11434/api/generate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    signal: abortController.signal,
-    body: JSON.stringify({
-      model: "llama3",
-      prompt,
-      stream: true,
-      options: { temperature: 0.4, top_p: 0.9, num_predict: 180 },
-    }),
-  });
+    const port = getNextPort();
+    console.log(`[AskGobi] Using Ollama port ${port} for "${query}"`);
 
-  if (!remote.body) {
-    return new Response(JSON.stringify({ error: "No stream from model" }), {
-      status: 502,
+    console.log(`[AskGobi] Sending "${query}" → port ${port}`);
+
+
+    const remote = await fetch(`http://127.0.0.1:${port}/api/generate`, {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: abortController.signal,
+      body: JSON.stringify({
+        model: "phi3", // or "llama3" in production
+        prompt,
+        stream: true,
+        options: { temperature: 0.4, top_p: 0.9, num_predict: 180 },
+      }),
     });
-  }
 
-  const reader = remote.body.getReader();
-  const decoder = new TextDecoder();
+    if (!remote.body) {
+      return new Response(JSON.stringify({ error: "No stream from model" }), {
+        status: 502,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
-  return new Response(
-    new ReadableStream({
-      async start(controller) {
-        let accumulatedWords = 0;
-        const MAX_WORDS = 180;
-        let buffer = "";
-        let closed = false;
+    const reader = remote.body.getReader();
+    const decoder = new TextDecoder();
 
-        const safeClose = () => {
-          if (!closed) {
-            controller.close();
-            closed = true;
-            console.log("[askLocal] Stream closed cleanly ✅");
-          }
-        };
+    const response = new Response(
+      new ReadableStream({
+        async start(controller) {
+          let accumulatedWords = 0;
+          const MAX_WORDS = 180;
+          let buffer = "";
+          let closed = false;
 
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
+          const safeClose = () => {
+            if (!closed) {
+              controller.close();
+              closed = true;
+              console.log("[askLocal] Stream closed cleanly ✅");
+            }
+          };
 
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split("\n").filter(Boolean);
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
 
-            for (const line of lines) {
-              try {
-                const json = JSON.parse(line);
-                const text = String(json.response || "");
-                buffer += text;
+              const chunk = decoder.decode(value, { stream: true });
+              const lines = chunk.split("\n").filter(Boolean);
 
-                // 🚫 Banned content filter
-                for (const p of BANNED_PATTERNS) {
-                  if (p.test(text)) {
+              for (const line of lines) {
+                try {
+                  const json = JSON.parse(line);
+                  const text = String(json.response || "");
+                  buffer += text;
+
+                  for (const p of BANNED_PATTERNS) {
+                    if (p.test(text)) {
+                      controller.enqueue(
+                        new TextEncoder().encode(
+                          JSON.stringify({
+                            response:
+                              "I'm sorry, my creator instructed not to discuss that. Let's keep our questions kind and helpful.\n",
+                          }) + "\n"
+                        )
+                      );
+                      safeClose();
+                      clearTimeout(timeout);
+                      return;
+                    }
+                  }
+
+                  accumulatedWords += (text.match(/\S+/g) || []).length;
+
+                  const formatted = text
+                    .replace(/([✅📜🌿🧠⚙️💡🌍])\s/g, "\n$1 ")
+                    .replace(/(\.\s)(?=[✅📜🌿🧠⚙️💡🌍])/g, "$1\n");
+
+                  controller.enqueue(
+                    new TextEncoder().encode(
+                      JSON.stringify({ response: formatted }) + "\n"
+                    )
+                  );
+
+                  if (accumulatedWords >= MAX_WORDS) {
+                    const cutoff =
+                      buffer.lastIndexOf(".") > 0
+                        ? buffer.lastIndexOf(".") + 1
+                        : buffer.length;
+                    let finalText = buffer.slice(0, cutoff).trim();
+                    if (!finalText.endsWith(".")) finalText += ".";
+                    finalText += "\n💡 **End of summary.**";
+
                     controller.enqueue(
                       new TextEncoder().encode(
-                        JSON.stringify({
-                          response:
-                            "I'm sorry, my creator instructed not to discuss that. Let's keep our questions kind and helpful.\n",
-                        }) + "\n"
+                        JSON.stringify({ response: finalText }) + "\n"
                       )
                     );
                     safeClose();
                     clearTimeout(timeout);
+                    console.log("[askLocal] Word limit reached — closed neatly.");
                     return;
                   }
+                } catch {
+                  // ignore malformed JSON
                 }
-
-                accumulatedWords += (text.match(/\S+/g) || []).length;
-
-                const formatted = text
-                  .replace(/([✅📜🌿🧠⚙️💡🌍])\s/g, "\n$1 ")
-                  .replace(/(\.\s)(?=[✅📜🌿🧠⚙️💡🌍])/g, "$1\n");
-
-                controller.enqueue(
-                  new TextEncoder().encode(
-                    JSON.stringify({ response: formatted }) + "\n"
-                  )
-                );
-
-                // 🛑 Cut off neatly if too long
-                if (accumulatedWords >= MAX_WORDS) {
-                  const cutoff =
-                    buffer.lastIndexOf(".") > 0
-                      ? buffer.lastIndexOf(".") + 1
-                      : buffer.length;
-                  let finalText = buffer.slice(0, cutoff).trim();
-                  if (!finalText.endsWith(".")) finalText += ".";
-                  finalText += "\n💡 **End of summary.**";
-
-                  controller.enqueue(
-                    new TextEncoder().encode(
-                      JSON.stringify({ response: finalText }) + "\n"
-                    )
-                  );
-                  safeClose();
-                  clearTimeout(timeout);
-                  console.log("[askLocal] Word limit reached — closed neatly.");
-                  return;
-                }
-              } catch {
-                // ignore malformed JSON
               }
             }
+          } catch (err) {
+            console.error("Stream error:", err);
+          } finally {
+            clearTimeout(timeout);
+            safeClose();
           }
-        } catch (err) {
-          console.error("Stream error:", err);
-        } finally {
-          clearTimeout(timeout);
-          safeClose();
-        }
-      },
-    }),
-    {
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-cache, no-transform",
-        Connection: "keep-alive",
-      },
-    }
-  );
+        },
+      }),
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache, no-transform",
+          Connection: "keep-alive",
+        },
+      }
+    );
+
+    return response;
+  });
 }
