@@ -4,10 +4,10 @@ import pLimit from "p-limit";
 export const dynamic = "force-dynamic";
 
 // ✅ Allow up to 4 concurrent AI generations
-const limit = pLimit(4);
+const limit = pLimit(2);
 
 // after imports
-const ports = ["11438", "11435", "11436", "11437"];
+const ports = Array.from({ length: 2 }, (_, i) => 11435 + i); 
 let nextPort = 0;
 
 function getNextPort() {
@@ -125,10 +125,10 @@ export async function POST(req: NextRequest) {
       headers: { "Content-Type": "application/json" },
       signal: abortController.signal,
       body: JSON.stringify({
-        model: "phi3", // or "llama3" in production
+        model: "llama3", // or "phi3" in testing
         prompt,
         stream: true,
-        options: { temperature: 0.4, top_p: 0.9, num_predict: 180 },
+        options: { temperature: 0.6, top_p: 0.9, num_predict: 150 },
       }),
     });
 
@@ -199,6 +199,12 @@ export async function POST(req: NextRequest) {
                       JSON.stringify({ response: formatted }) + "\n"
                     )
                   );
+
+if (accumulatedWords % 20 === 0 && text.trim() !== "") {
+  controller.enqueue(
+    new TextEncoder().encode(JSON.stringify({ response: " " }) + "\n")
+  );
+}
 
                   if (accumulatedWords >= MAX_WORDS) {
                     const cutoff =
