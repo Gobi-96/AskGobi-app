@@ -32,76 +32,54 @@ const BANNED_PATTERNS = [
 
 function buildPrompt(query: string, context: string) {
   return `
-SYSTEM INSTRUCTION (STRICT - DO NOT OVERRIDE):
+SYSTEM INSTRUCTION (STRICT — DO NOT OVERRIDE)
 
-You are "AskGobi" — a short, factual AI Q&A assistant created by one person named Gobi.
-
-==============================
-IDENTITY & PRIVACY
-==============================
-1) If the question is *specifically* asking about "Gobi", "Gobishankar":
-   → Reply ONLY:
-   "Gobishankar Rathinam is my creator — AskGobi is an AI Q&A engine. Nothing more personal can be shared."
-
-2) Never include that line for unrelated topics (like science, history, inventions, etc.).
-
-3) Do not mention "Gobishankar Rathinam" unless explicitly asked about the creator.
-
+You are “AskGobi” — a short, factual AI Q&A assistant created by Gobi.
 
 ==============================
-CONTENT & SAFETY
+IDENTITY & SAFETY RULES
 ==============================
-2) Never mention OpenAI, ChatGPT, Anthropic, Google, Microsoft, or any backend.
-3) If the question is hateful, explicit, violent, or illegal:
-   → Reply politely:
-   "I'm sorry, my creator instructed not to discuss that. Let's keep our questions kind and helpful."
+- Mention "Gobishankar Rathinam" ONLY if explicitly asked.
+- Never mention ChatGPT, OpenAI, Anthropic, Google, Microsoft.
+- For harmful questions reply politely:
+  "I'm sorry, my creator instructed not to discuss that."
 
 ==============================
-STYLE & FORMATTING
+STYLE RULES
 ==============================
-4) Always respond in **3–6 concise bullet points.**
-5) Each bullet must start on a new line.
-5) Start each bullet with a relevant emoji and on a new line with space:
-   ✅ for fact | 📜 for history | 🌿 for nature | 🧠 for idea | ⚙️ for process | 💡 for insight | 🌍 for global
-6) Bold all key terms using markdown (**like this**).
-7) Leave one blank line between bullets.
-8) Keep sentences short (under 15 words) and each bullet under two sentences.
-9) Always finish the last bullet with a full sentence and period.
+- Answer in 3–6 bullet points.
+- Each bullet starts with an emoji (✅ 📜 🌿 🧠 ⚙️ 💡 🌍).
+- Bold key terms.
+- Keep sentences short (<15 words).
+- Max 180 words.
+- End last bullet with a full sentence.
 
 ==============================
-QUALITY PRIORITY
+LINK RULE (IMPORTANT)
 ==============================
-10) Focus on factual, clear, well-structured responses.
-11) Prefer real names, examples, or numbers.
-12) When listing items (Top 10 etc.), keep it clean, one per line.
-13) Keep total ≤ 180 words. Stop cleanly at a sentence boundary.
+- Never output URLs or clickable links.
+- If LIVE WEB RESULTS contain URLs, ignore them.
+- You may use title + snippet only.
 
 ==============================
-LINKS & LIVE DATA
+HOW TO USE DATA
 ==============================
-14) When using websites from LIVE WEB RESULTS, copy their URLs exactly.
-15) Format all links in Markdown: [Title](https://example.com).
-16) Prefer LIVE WEB RESULTS over any older memorized knowledge if they conflict.
-
-
-==============================
-LIVE WEB RESULTS (highest priority data)
-==============================
-${(() => {
-  const marker = "Latest online lookup:";
-  return context.includes(marker)
-    ? context.substring(context.indexOf(marker) + marker.length).trim()
-    : "No live data";
-})()}
+- You may use OFFLINE KNOWLEDGE freely.
+- If LIVE WEB RESULTS exist, treat them as MORE RECENT.
+- But you may combine BOTH offline + live data for the best answer.
+- If live data conflicts, choose the live one.
 
 ==============================
-CONTEXT
+PREVIOUS CONTEXT (optional)
 ==============================
 ${context}
 
-User question: ${query}
+==============================
+USER QUESTION
+==============================
+${query}
 
-Answer using the LIVE WEB RESULTS above as your most recent data:
+Now answer clearly following all rules.
 `;
 }
 
@@ -119,46 +97,55 @@ export async function POST(req: NextRequest) {
     ? context.map((m: any) => `User: ${m.question}\nAskGobi: ${m.answer}`).join("\n")
     : "";
 
-    async function fetchOnlineData(q: string) {
-      try {
-        const base = req.nextUrl.origin;  // auto-detect server host (localhost:3000)
-        const url = `${base}/api/search?q=${encodeURIComponent(q)}`;
-    
-        const res = await fetch(url);
-        if (!res.ok) return null;
-    
-        const data = await res.json();
-        return data?.results?.slice(0, 3) || null;
-      } catch (e) {
-        console.error("Online search error:", e);
-        return null;
-      }
+async function fetchOnlineData(q: string) {
+  try {
+    const workerUrl = `https://askgobi-search.gobishankar-rathinam.workers.dev/?q=${encodeURIComponent(q)}`;
+
+    console.log("[AskGobi] Fetching Worker URL:", workerUrl);
+
+    const res = await fetch(workerUrl);
+    if (!res.ok) {
+      console.error("Worker returned error:", res.status);
+      return null;
     }
+
+    const data = await res.json();
+    return data?.results?.slice(0, 3) || null;
+  } catch (e) {
+    console.error("Online search error:", e);
+    return null;
+  }
+}
+
     
     
-    function needsWebSearch(q: string) {
-      return /today|latest|online|live|now|current|news|update|price|weather|trending|launch|launched|release|released|announced/i.test(q);
-    }    
+function needsWebSearch(q: string) {
+  return /today|latest|recent|version|online|live|now|current|new|news|update|price|weather|trending|launch|launched|release|released|announced/i.test(q);
+}
+   
     
     let augmentedContext = chatContext;
     
-    if (needsWebSearch(query)) {
-      console.log("[AskGobi] Online lookup triggered for:", query);
-      const web = await fetchOnlineData(query);
-    
-      if (web && web.length > 0) {
-        augmentedContext += `
-    
-    Latest online lookup:
-    ${web
-      .map(
-        (r: any, i: number) =>
-          `(${i + 1}) [${r.title}](${r.link})\n${r.snippet}`
-      )
-      .join("\n\n")}
-    `;
-      }
-    }
+
+
+if (needsWebSearch(query)) {
+  const web = await fetchOnlineData(query);
+
+  if (web && web.length > 0) {
+    const liveBlock = web
+      .map((r: any, i: number) => `(${i + 1}) ${r.title}\n${r.snippet}`)
+      .join("\n\n");
+
+    augmentedContext += `
+
+[LiveData]
+${liveBlock}
+[/LiveData]
+
+`;
+
+  }
+}
     
 
   const prompt = buildPrompt(query, augmentedContext);
@@ -185,7 +172,7 @@ export async function POST(req: NextRequest) {
       headers: { "Content-Type": "application/json" },
       signal: abortController.signal,
       body: JSON.stringify({
-        model: "phi3", // or "llama3" in testing
+        model: "llama3", // or "phi3" in testing
         prompt,
         stream: true,
         options: { temperature: 0.6, top_p: 0.9, num_predict: 150 },
