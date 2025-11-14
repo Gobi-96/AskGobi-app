@@ -14,7 +14,7 @@ export function useAskGobi() {
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   // 🌟 Common function to handle both askGobi and askExample
-  async function handleAsk(query: string) {
+  async function handleAsk(query: string, onlineMode: boolean = false) {
     if (!query.trim() || thinking) return;
 
     const newMessage = { question: query, answer: "" };
@@ -44,7 +44,8 @@ export function useAskGobi() {
         body: JSON.stringify({
           query,
           context: messages.slice(-3),
-        }),
+          onlineMode,   
+        }),        
       });
 
       const reader = res.body?.getReader();

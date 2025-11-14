@@ -39,7 +39,7 @@ You are "AskGobi" — a short, factual AI Q&A assistant created by one person na
 ==============================
 IDENTITY & PRIVACY
 ==============================
-1) If the question is *specifically* asking about "Gobi", "Gobishankar", or "Rathinam":
+1) If the question is *specifically* asking about "Gobi", "Gobishankar":
    → Reply ONLY:
    "Gobishankar Rathinam is my creator — AskGobi is an AI Q&A engine. Nothing more personal can be shared."
 
@@ -77,13 +77,31 @@ QUALITY PRIORITY
 13) Keep total ≤ 180 words. Stop cleanly at a sentence boundary.
 
 ==============================
+LINKS & LIVE DATA
+==============================
+14) When using websites from LIVE WEB RESULTS, copy their URLs exactly.
+15) Format all links in Markdown: [Title](https://example.com).
+16) Prefer LIVE WEB RESULTS over any older memorized knowledge if they conflict.
+
+
+==============================
+LIVE WEB RESULTS (highest priority data)
+==============================
+${(() => {
+  const marker = "Latest online lookup:";
+  return context.includes(marker)
+    ? context.substring(context.indexOf(marker) + marker.length).trim()
+    : "No live data";
+})()}
+
+==============================
 CONTEXT
 ==============================
 ${context}
 
 User question: ${query}
 
-Answer:
+Answer using the LIVE WEB RESULTS above as your most recent data:
 `;
 }
 
@@ -101,7 +119,49 @@ export async function POST(req: NextRequest) {
     ? context.map((m: any) => `User: ${m.question}\nAskGobi: ${m.answer}`).join("\n")
     : "";
 
-  const prompt = buildPrompt(query, chatContext);
+    async function fetchOnlineData(q: string) {
+      try {
+        const base = req.nextUrl.origin;  // auto-detect server host (localhost:3000)
+        const url = `${base}/api/search?q=${encodeURIComponent(q)}`;
+    
+        const res = await fetch(url);
+        if (!res.ok) return null;
+    
+        const data = await res.json();
+        return data?.results?.slice(0, 3) || null;
+      } catch (e) {
+        console.error("Online search error:", e);
+        return null;
+      }
+    }
+    
+    
+    function needsWebSearch(q: string) {
+      return /today|latest|online|live|now|current|news|update|price|weather|trending|launch|launched|release|released|announced/i.test(q);
+    }    
+    
+    let augmentedContext = chatContext;
+    
+    if (needsWebSearch(query)) {
+      console.log("[AskGobi] Online lookup triggered for:", query);
+      const web = await fetchOnlineData(query);
+    
+      if (web && web.length > 0) {
+        augmentedContext += `
+    
+    Latest online lookup:
+    ${web
+      .map(
+        (r: any, i: number) =>
+          `(${i + 1}) [${r.title}](${r.link})\n${r.snippet}`
+      )
+      .join("\n\n")}
+    `;
+      }
+    }
+    
+
+  const prompt = buildPrompt(query, augmentedContext);
   console.log(`[API] Streaming response for: "${query}"`);
 
   // 🚀 Wrap the full generation inside limit() so up to 4 can run concurrently
@@ -125,7 +185,7 @@ export async function POST(req: NextRequest) {
       headers: { "Content-Type": "application/json" },
       signal: abortController.signal,
       body: JSON.stringify({
-        model: "llama3", // or "phi3" in testing
+        model: "phi3", // or "llama3" in testing
         prompt,
         stream: true,
         options: { temperature: 0.6, top_p: 0.9, num_predict: 150 },
@@ -191,8 +251,12 @@ export async function POST(req: NextRequest) {
                   accumulatedWords += (text.match(/\S+/g) || []).length;
 
                   const formatted = text
-                    .replace(/([✅📜🌿🧠⚙️💡🌍])\s/g, "\n$1 ")
-                    .replace(/(\.\s)(?=[✅📜🌿🧠⚙️💡🌍])/g, "$1\n");
+                  // Insert newline before bullet emojis only when NOT inside a markdown link
+                  .replace(/(?<!\])([✅📜🌿🧠⚙️💡🌍])\s/g, "\n$1 ")
+                
+                  // Do NOT break after dots inside URLs
+                  .replace(/(?<=[a-zA-Z0-9]\. )(?=[A-Z])/g, "\n");
+                
 
                   controller.enqueue(
                     new TextEncoder().encode(
