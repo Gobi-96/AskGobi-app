@@ -84,7 +84,7 @@ Now answer clearly following all rules.
 }
 
 export async function POST(req: NextRequest) {
-  const { query, context = [] } = await req.json();
+  const { query, context = [], onlineMode = false } = await req.json();
 
   if (!query || typeof query !== "string") {
     return new Response(JSON.stringify({ error: "Missing 'query' string" }), {
@@ -123,12 +123,14 @@ function needsWebSearch(q: string) {
   return /today|latest|recent|version|online|live|now|current|new|news|update|price|weather|trending|launch|launched|release|released|announced/i.test(q);
 }
    
-    
+   // ⭐ Final decision: auto mode OR manual toggle
+const mustSearchOnline = onlineMode || needsWebSearch(query);
+ 
     let augmentedContext = chatContext;
     
 
 
-if (needsWebSearch(query)) {
+if (mustSearchOnline) {
   const web = await fetchOnlineData(query);
 
   if (web && web.length > 0) {

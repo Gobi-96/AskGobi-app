@@ -43,7 +43,7 @@ export function useAskGobi() {
         signal: controller.signal,
         body: JSON.stringify({
           query,
-          context: messages.slice(-3),
+          context: messages.slice(-3, messages.length - 1),
           onlineMode,   
         }),        
       });
