@@ -77,11 +77,9 @@ export default function HomePage() {
             thinking={thinking}
             abortController={abortController}
             theme={theme}
-            askGobi={(e) => {
-              e.preventDefault();
-              handleAsk(question);
-              setQuestion("");
-            }}
+askGobi={(query, onlineMode) => {
+  handleAsk(query, onlineMode);
+}}
             setThinking={setThinking}
           />
         </>

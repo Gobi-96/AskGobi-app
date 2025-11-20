@@ -1,76 +1,63 @@
 import { NextRequest, NextResponse } from "next/server";
-import axios from "axios";
-import * as cheerio from "cheerio";
 
 export const dynamic = "force-dynamic";
 
+// Cloudflare Worker URL
+const WORKER_URL =
+  "https://askgobi-search.gobishankar-rathinam.workers.dev";
+
+// 🔥 Boost version searches for technical accuracy
+function boostQuery(original: string) {
+  const q = original.toLowerCase();
+
+  if (q.includes("java"))
+    return `${original} latest version site:oracle.com OR site:openjdk.org`;
+
+  if (q.includes("python"))
+    return `${original} latest version site:python.org`;
+
+  if (q.includes("node"))
+    return `${original} latest version site:nodejs.org`;
+
+  if (q.includes("windows"))
+    return `${original} latest version site:microsoft.com`;
+
+  if (q.includes("ios") || q.includes("iphone"))
+    return `${original} latest version site:apple.com`;
+
+  if (q.includes("android") || q.includes("pixel"))
+    return `${original} latest version site:android.com`;
+
+  // Default: return original query
+  return original;
+}
+
 export async function GET(req: NextRequest) {
   const query = req.nextUrl.searchParams.get("q");
+
   if (!query) {
     return NextResponse.json({ error: "Missing query" }, { status: 400 });
   }
 
   try {
-    const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(
-      query
-    )}`;
-    const { data: html } = await axios.get(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/123.0 Safari/537.36",
-      },
-    });
+    // 🚀 Boost query before sending to Worker
+    const enhanced = boostQuery(query);
 
-    const $ = cheerio.load(html);
-    const results: any[] = [];
+    const url = `${WORKER_URL}/?q=${encodeURIComponent(enhanced)}`;
 
-    $(".result").each((i, el) => {
-      const rawTitle =
-        $(el).find(".result__title").text().trim() ||
-        $(el).find("a.result__a").text().trim();
+    const res = await fetch(url);
 
-      // 🧹 Skip ads
-      if (!rawTitle || rawTitle.toLowerCase().includes("ad")) return;
+    if (!res.ok) {
+      return NextResponse.json(
+        { error: "Worker failed" },
+        { status: res.status }
+      );
+    }
 
-      const rawLink =
-        $(el).find(".result__url").attr("href") ||
-        $(el).find("a.result__a").attr("href");
-      if (!rawLink) return;
-
-      // ✅ Normalize link
-      let fullLink = rawLink.startsWith("http")
-        ? rawLink
-        : `https:${rawLink}`;
-
-      // ✅ If it's a DuckDuckGo redirect, extract real URL from ?uddg=
-      try {
-        const urlObj = new URL(fullLink);
-        const uddg = urlObj.searchParams.get("uddg");
-        if (uddg) {
-          fullLink = decodeURIComponent(uddg);
-        }
-      } catch {
-        // if URL parsing fails, just keep fullLink as-is
-      }
-
-      const snippet =
-        $(el).find(".result__snippet").text().trim() ||
-        $(el).find(".snippet").text().trim() ||
-        "";
-
-      results.push({
-        title: rawTitle,
-        link: fullLink,
-        snippet,
-      });
-    });
-
-    return NextResponse.json({
-      query,
-      results: results.slice(0, 5),
-    });
-  } catch (e) {
-    console.error("Search error:", e);
+    const data = await res.json();
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error("Search error:", error);
     return NextResponse.json(
       { error: "Search failed" },
       { status: 500 }
