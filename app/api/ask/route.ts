@@ -3,11 +3,14 @@ import { NextRequest } from "next/server";
 import pLimit from "p-limit";  
 export const dynamic = "force-dynamic";
 
-// ✅ Allow up to 4 concurrent AI generations
+// ✅ Allow up to 2 concurrent AI generations
 const limit = pLimit(2);
 
-// after imports
-const ports = Array.from({ length: 2 }, (_, i) => 11435 + i); 
+const ports =
+  process.env.OLLAMA_PORTS?.split(",")
+    .map((p) => Number(p.trim()))
+    .filter((p) => Number.isFinite(p) && p > 0) ?? [11434];
+const ollamaModel = process.env.OLLAMA_MODEL || "phi3:mini";
 let nextPort = 0;
 
 function getNextPort() {
@@ -174,7 +177,7 @@ ${liveBlock}
       headers: { "Content-Type": "application/json" },
       signal: abortController.signal,
       body: JSON.stringify({
-        model: "llama3", // or "phi3" in testing
+        model: ollamaModel,
         prompt,
         stream: true,
         options: { temperature: 0.6, top_p: 0.9, num_predict: 150 },

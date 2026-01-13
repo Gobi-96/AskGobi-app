@@ -1,30 +1,88 @@
-# AskGobi – Perplexity-style Q&A (MVP)
+# AskGobi – Local Q&A (MVP)
 
-Public Q&A engine with web search (Tavily) + free LLM (Groq Llama 3.1). Dark theme by default with toggle.
+Local-first Q&A engine powered by Ollama, with optional online lookup. Dark theme by default with toggle.
 
 ## 1) Prereqs
 - Node 18+
-- API keys:
-  - **Groq**: https://console.groq.com/keys
-  - **Tavily**: https://tavily.com
+- Ollama (local models)
 
-## 2) Setup
+## 2) Setup (macOS)
+1) Install Ollama:
 ```bash
-cp .env.local.example .env.local
-# put your keys in .env.local
-npm install
-npm run dev
+brew install ollama
 ```
 
-Open http://localhost:3000
+2) Start the Ollama server (leave this running):
+```bash
+ollama serve
+```
 
-## 3) Deploy (Vercel)
-- Push to GitHub
-- Import repo on https://vercel.com
-- Add env vars: `GROQ_API_KEY`, `TAVILY_API_KEY`
-- Deploy 🎉
+3) Download a small model (recommended for M1/M2):
+```bash
+ollama pull phi3:mini
+```
+
+4) Install app dependencies and configure env:
+```bash
+cp .env.local.example .env.local
+npm install
+```
+
+5) Edit `.env.local`:
+```
+OLLAMA_MODEL=phi3:mini
+OLLAMA_PORTS=11434
+```
+
+6) Start the app:
+```bash
+npm run dev -- -p 3000
+```
+
+Open http://localhost:3000 (or change the port if 3000 is in use).
+
+## 3) Setup (Windows)
+1) Install Ollama from https://ollama.com/download
+
+2) Start the Ollama server:
+```powershell
+ollama serve
+```
+
+3) Download a small model:
+```powershell
+ollama pull phi3:mini
+```
+
+4) Install app dependencies and configure env:
+```powershell
+copy .env.local.example .env.local
+npm install
+```
+
+5) Edit `.env.local`:
+```
+OLLAMA_MODEL=phi3:mini
+OLLAMA_PORTS=11434
+```
+
+6) Start the app:
+```powershell
+npm run dev -- -p 3000
+```
+
+Open http://localhost:3000.
 
 ## Notes
-- Model: `llama-3.1-70b-versatile` via Groq SDK.
-- Search: Tavily free tier (with citations).
-- No login/history now. Ready to add Supabase + NextAuth later.
+- Local models are configured via `OLLAMA_MODEL` and `OLLAMA_PORTS`.
+- Suggested models:
+  - `phi3:mini` (small, good for laptops)
+  - `llama3.2:3b` (small, stronger but heavier)
+  - `qwen2.5:0.5b` (tiny, fastest, weakest)
+- If port 3000 is in use, run `npm run dev -- -p 3001`.
+
+## Troubleshooting
+- Missing dependencies after a fresh install:
+  - `npm install rehype-raw p-limit`
+- Next.js cache errors (`invalid code lengths set`):
+  - `rm -rf .next`
