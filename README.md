@@ -86,3 +86,17 @@ Open http://localhost:3000.
   - `npm install rehype-raw p-limit`
 - Next.js cache errors (`invalid code lengths set`):
   - `rm -rf .next`
+
+## App Screenshots
+
+<img width="1342" height="732" alt="image" src="https://github.com/user-attachments/assets/ddd7ab01-b2bf-4393-8bb8-5a3a2beec264" />
+
+<img width="1341" height="727" alt="image" src="https://github.com/user-attachments/assets/cc70fc4f-5c7f-4aba-b911-b78ee03f66be" />
+
+<img width="2204" height="1148" alt="image" src="https://github.com/user-attachments/assets/3766a6e2-4b8e-4549-b257-0f177682bf60" />
+
+<img width="2208" height="1090" alt="image" src="https://github.com/user-attachments/assets/53245bef-0e20-4336-ae3d-8beccd0209f1" />
+
+<img width="1419" height="695" alt="image" src="https://github.com/user-attachments/assets/78358f46-25ca-433a-943e-71787d21c532" />
+
+
