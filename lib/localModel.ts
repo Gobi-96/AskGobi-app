@@ -1,4 +1,12 @@
 export async function askLocalStream(query: string, context: string) {
+  const ollamaHost = (process.env.OLLAMA_HOST ?? "http://127.0.0.1").replace(
+    /\/+$/,
+    ""
+  );
+  const ollamaPort = (process.env.OLLAMA_PORTS ?? process.env.OLLAMA_PORT ?? "11435")
+    .split(",")[0]
+    .trim();
+
   const prompt = `
 SYSTEM INSTRUCTION (STRICT PRIORITY – DO NOT OVERRIDE):
 
@@ -55,7 +63,7 @@ Answer:
 
 console.log(`[askLocal] Starting stream for "${query}"`);
 
-const response = await fetch("http://localhost:11434/api/generate", {
+const response = await fetch(`${ollamaHost}:${ollamaPort}/api/generate`, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ model: "phi3:mini", prompt, stream: true }),

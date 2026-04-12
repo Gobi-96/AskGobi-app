@@ -13,9 +13,7 @@ import { useAskGobi } from "@/app/hooks/useAskGobi";
 export default function HomePage() {
   const {
     messages,
-    setMessages,
     thinking,
-    setThinking,
     isTyping,
     abortController,
     handleAsk,
@@ -25,12 +23,17 @@ export default function HomePage() {
   const [mounted, setMounted] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
   const [question, setQuestion] = useState("");
-  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setMounted(true), []);
+
+  // scroll latest content into view
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [messages]);
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, thinking, isTyping]);
 
   if (!mounted) return null;
 
@@ -48,40 +51,70 @@ export default function HomePage() {
 
       {!showIntro && (
         <>
-          <div className="flex flex-col h-screen">
-            <ChatHeader />
+          <ChatHeader />
 
-            {/* Scrollable middle section */}
-            <div className="flex-1 overflow-y-auto pt-20 pb-28 px-4 max-w-3xl mx-auto w-full">
-              {messages.length === 0 && !thinking ? (
-                <EmptyChatScreen
-                  askExample={(example) => handleAsk(example)}
-                  theme={theme}
-                />
-              ) : (
-                <ChatMessages
-                  messages={messages}
-                  thinking={thinking}
-                  isTyping={isTyping}
-                  theme={theme}
-                />
-              )}
-              <div ref={chatEndRef} />
-            </div>
+          {/* Scrollable area */}
+          <div
+            ref={scrollRef}
+            className="flex-1 overflow-y-auto px-4 pt-4 pb-[150px] max-w-3xl mx-auto w-full"
+          >
+            {messages.length === 0 && !thinking ? (
+              <EmptyChatScreen
+                askExample={(example) => handleAsk(example)}
+                theme={theme}
+              />
+            ) : (
+              <>
+                {/* OLD messages above header style */}
+                <div className="flex flex-col gap-6 mt-20">
+                  {messages.slice(0, -1).map((msg, i) => (
+                    <ChatMessages
+                      key={i}
+                      messages={[msg]}
+                      thinking={false}
+                      isTyping={false}
+                      theme={theme}
+                    />
+                  ))}
+                </div>
+
+                {/* Latest Q/A */}
+                {messages.length > 0 && (
+                  <ChatMessages
+                    messages={[messages[messages.length - 1]]}
+                    thinking={thinking}
+                    isTyping={isTyping}
+                    theme={theme}
+                  />
+                )}
+              </>
+            )}
           </div>
 
-          {/* Input bar */}
-          <ChatInputBar
-            question={question}
-            setQuestion={setQuestion}
-            thinking={thinking}
-            abortController={abortController}
-            theme={theme}
-askGobi={(query, onlineMode) => {
-  handleAsk(query, onlineMode);
-}}
-            setThinking={setThinking}
-          />
+          {/* BOTTOM SECTION */}
+          <div className="fixed bottom-0 left-0 right-0 flex flex-col items-center z-40 pb-3">
+
+            <ChatInputBar
+              question={question}
+              setQuestion={setQuestion}
+              thinking={thinking}
+              abortController={abortController}
+              theme={theme}
+              askGobi={(q, online) => handleAsk(q, online)}
+              setThinking={() => {}}
+            />
+
+            {/* FOOTER */}
+            <div
+              className={`text-center text-xs mt-2 opacity-60 ${
+                theme === "light" ? "text-gray-700" : "text-gray-400"
+              }`}
+              style={{ pointerEvents: "none" }}
+            >
+              AskGobi can make mistakes — still under development.
+            </div>
+
+          </div>
         </>
       )}
     </main>

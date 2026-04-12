@@ -25,12 +25,11 @@ export default function ChatInputBar({
   const [showPopup, setShowPopup] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Auto-online keyword detector
+  // auto detect online mode
   function autoOnline(q: string) {
     return /today|latest|recent|version|online|live|now|current|new|news|update|price|weather|trending|launch|launched|release|released|announced/i.test(q);
   }
 
-  // Submit logic
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!question.trim()) return;
@@ -39,27 +38,22 @@ export default function ChatInputBar({
     askGobi(question, finalOnline);
     setQuestion("");
 
-    // Reset to default height
     if (textareaRef.current) {
       textareaRef.current.style.height = "44px";
     }
   };
 
-  // Auto-resize textarea
+  // auto-resize
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
 
-    el.style.height = "44px"; // base height
+    el.style.height = "44px";
     const scrollH = el.scrollHeight;
-
-    // only expand when needed
-    if (scrollH > 44) {
-      el.style.height = Math.min(scrollH, 120) + "px"; // max ~3 lines
-    }
+    if (scrollH > 44) el.style.height = Math.min(scrollH, 120) + "px";
   }, [question]);
 
-  // Enter submit / Shift+Enter new line
+  // enter = submit
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -75,9 +69,10 @@ export default function ChatInputBar({
         </div>
       )}
 
+      {/* ⭐ NOT FIXED ANYMORE */}
       <form
         onSubmit={handleSubmit}
-        className={`fixed bottom-0 left-0 right-0 p-4 shadow-xl backdrop-blur-md z-40 ${
+        className={`w-full p-4 shadow-xl backdrop-blur-md z-40 ${
           theme === "light" ? "bg-white/80" : "bg-[#0d0d0d]/80"
         }`}
       >
@@ -88,8 +83,7 @@ export default function ChatInputBar({
               : "border-gray-700 bg-[#111]"
           }`}
         >
-
-          {/* MULTILINE AUTO-EXPANDING TEXTAREA */}
+          {/* TEXTAREA */}
           <textarea
             ref={textareaRef}
             placeholder="Ask anything..."
@@ -102,14 +96,13 @@ export default function ChatInputBar({
               bg-transparent text-base sm:text-lg
               leading-[1.4] px-1 py-2
               outline-none
-              ${
-                theme === "light"
-                  ? "text-gray-900 placeholder-gray-500"
-                  : "text-white placeholder-gray-500"
+              ${theme === "light"
+                ? "text-gray-900 placeholder-gray-500"
+                : "text-white placeholder-gray-500"
               }`}
           />
 
-          {/* Globe Button */}
+          {/* GLOBE BUTTON */}
           <button
             type="button"
             onClick={() => {
@@ -131,7 +124,7 @@ export default function ChatInputBar({
             🌐
           </button>
 
-          {/* Ask / Stop */}
+          {/* ASK / STOP */}
           <button
             type={thinking ? "button" : "submit"}
             className={`min-w-[70px] sm:min-w-[90px] h-[44px]
