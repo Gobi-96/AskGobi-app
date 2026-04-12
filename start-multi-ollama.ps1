@@ -1,6 +1,6 @@
-Write-Host "Launching 2 Ollama instances (11435-11436) with llama3 preloaded..."
+Write-Host "Launching 1 Ollama instance (11435) with gemma2:2b preloaded..."
 
-$ports = 11435..11436
+$ports = 11435..11435
 
 foreach ($p in $ports) {
     Start-Process powershell -ArgumentList '-NoExit', '-Command', "
@@ -8,11 +8,11 @@ foreach ($p in $ports) {
         Write-Host ('Starting Ollama on port ' + $p + ' ...');
         Start-Job { ollama serve } | Out-Null;
         Start-Sleep -Seconds 3;
-        Write-Host ('Preloading llama3 on port ' + $p + ' ...');
-        ollama run llama3;
+        Write-Host ('Preloading gemma2:2b on port ' + $p + ' ...');
+        ollama run gemma2:2b;
     "
     Start-Sleep -Milliseconds 500
 }
 
-Write-Host "All Ollama instances launched and preloading llama3."
+Write-Host "All Ollama instances launched and preloading gemma2:2b."
 Write-Host "Use 'netstat -ano | findstr 1143' to confirm they are listening."

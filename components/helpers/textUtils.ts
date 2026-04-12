@@ -1,9 +1,27 @@
 // 🚫 Only remove unsafe words — do NOT touch URLs
 export const sanitize = (text: string) => {
-  const banned =
-    /(sex|sexual|kill|murder|rape|porn|nsfw|explicit|abuse|nude|fuck|bitch|cock|pussy|hentai)/gi;
+  const bannedWholeWords = [
+    "sex",
+    "sexual",
+    "murder",
+    "rape",
+    "porn",
+    "nsfw",
+    "explicit",
+    "abuse",
+    "nude",
+    "fuck",
+    "bitch",
+    "cock",
+    "pussy",
+    "hentai"
+  ];
 
-  return text.replace(banned, "⚠️ [content removed]");
+  // ❗ DO NOT include "kill" here — it appears inside legit words (skill, skillet)
+  
+  const pattern = new RegExp(`\\b(${bannedWholeWords.join("|")})\\b`, "gi");
+
+  return text.replace(pattern, "⚠️ [content removed]");
 };
 
 // ✂️ Safe truncate (never breaks links)
