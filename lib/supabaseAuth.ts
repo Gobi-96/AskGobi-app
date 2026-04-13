@@ -1,6 +1,9 @@
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const TOKEN_KEY = "askgobi_supabase_access_token";
+export const AUTH_CHANGED_EVENT = "askgobi-auth-changed";
+export const AUTH_OPEN_EVENT = "askgobi-auth-open";
+export const AUTH_SIGNOUT_EVENT = "askgobi-auth-signout";
 
 export interface SupabaseUser {
   id: string;
@@ -58,6 +61,7 @@ export function consumeTokenFromUrlHash(): string | null {
   if (!token) return null;
 
   localStorage.setItem(TOKEN_KEY, token);
+  window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
   window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
   return token;
 }
@@ -89,4 +93,20 @@ export async function signOutSupabase(token: string) {
     },
   });
   localStorage.removeItem(TOKEN_KEY);
+  window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
+}
+
+export function getSupabaseRestConfig() {
+  return {
+    url: SUPABASE_URL,
+    anonKey: SUPABASE_ANON_KEY,
+  };
+}
+
+export function requestAuthModal(mode: "login" | "signup" = "login") {
+  window.dispatchEvent(new CustomEvent(AUTH_OPEN_EVENT, { detail: { mode } }));
+}
+
+export function requestAuthSignOut() {
+  window.dispatchEvent(new Event(AUTH_SIGNOUT_EVENT));
 }

@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { Moon, Sun, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import {
+  AUTH_OPEN_EVENT,
+  AUTH_SIGNOUT_EVENT,
   consumeTokenFromUrlHash,
   fetchSupabaseUser,
   getStoredToken,
@@ -13,7 +15,13 @@ import {
   type SupabaseUser,
 } from "@/lib/supabaseAuth";
 
-export default function ChatHeader() {
+export default function ChatHeader({
+  onMenuClick,
+  sidebarExpanded = true,
+}: {
+  onMenuClick?: () => void;
+  sidebarExpanded?: boolean;
+}) {
   const { theme, setTheme } = useTheme();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(false);
@@ -22,6 +30,7 @@ export default function ChatHeader() {
   const [email, setEmail] = useState("");
   const [authMessage, setAuthMessage] = useState("");
   const [authError, setAuthError] = useState("");
+  const [showMobileAccountMenu, setShowMobileAccountMenu] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -33,8 +42,19 @@ export default function ChatHeader() {
       if (!ignore) setUser(current);
     }
     void load();
+    const onOpenAuth = (event: Event) => {
+      const custom = event as CustomEvent<{ mode?: "login" | "signup" }>;
+      openAuth(custom.detail?.mode || "login");
+    };
+    const onSignoutRequest = () => {
+      void onSignOut();
+    };
+    window.addEventListener(AUTH_OPEN_EVENT, onOpenAuth as EventListener);
+    window.addEventListener(AUTH_SIGNOUT_EVENT, onSignoutRequest as EventListener);
     return () => {
       ignore = true;
+      window.removeEventListener(AUTH_OPEN_EVENT, onOpenAuth as EventListener);
+      window.removeEventListener(AUTH_SIGNOUT_EVENT, onSignoutRequest as EventListener);
     };
   }, []);
 
@@ -87,28 +107,89 @@ export default function ChatHeader() {
   return (
     <>
       <header
-        className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 backdrop-blur-md
+        className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-3 md:px-6 py-3 md:py-4 backdrop-blur-md
+          ${sidebarExpanded ? "md:left-[300px]" : "md:left-[64px]"}
           ${theme === "light"
             ? "bg-white/80 border-b border-gray-200"
             : "bg-[#0d0d0d]/80 border-b border-gray-800 text-white"}`}
       >
-        <h1 className="text-3xl font-bold">
-          <span className={theme === "light" ? "text-gray-900" : "text-white"}>Ask</span>
-          <span className="text-blue-500">Gobi</span>
-        </h1>
+        <div className="flex items-center gap-3">
+          {onMenuClick && (
+            <button
+              type="button"
+              onClick={onMenuClick}
+              className={`md:hidden inline-flex items-center justify-center text-xl leading-none ${
+                theme === "light" ? "text-gray-800" : "text-gray-200"
+              }`}
+              aria-label="Open chats menu"
+            >
+              ≡
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              if (user?.email) setShowMobileAccountMenu((v) => !v);
+            }}
+            className="text-2xl md:text-3xl font-bold"
+          >
+            <span className={theme === "light" ? "text-gray-900" : "text-white"}>Ask</span>
+            <span className="text-blue-500">Gobi</span>
+          </button>
+          {showMobileAccountMenu && user?.email && (
+            <div
+              className={`md:hidden absolute left-3 top-14 z-[75] min-w-[170px] rounded-lg border shadow-lg ${
+                theme === "light"
+                  ? "bg-white border-gray-200 text-gray-900"
+                  : "bg-[#17181d] border-gray-700 text-gray-100"
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMobileAccountMenu(false);
+                  openAuth("login");
+                }}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5"
+              >
+                Switch account
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMobileAccountMenu(false);
+                  void onSignOut();
+                }}
+                className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-black/5 dark:hover:bg-white/5"
+              >
+                Sign out
+              </button>
+            </div>
+          )}
+        </div>
 
         <div className="flex items-center gap-3">
           {hasSupabaseConfig() && (
             <>
               {user?.email ? (
                 <>
-                  <span className={`text-sm ${theme === "light" ? "text-gray-700" : "text-gray-300"}`}>
+                  <span className={`hidden md:inline text-sm ${theme === "light" ? "text-gray-700" : "text-gray-300"}`}>
                     {user.email}
                   </span>
+                  <div
+                    className={`md:hidden h-8 w-8 rounded-full inline-flex items-center justify-center text-sm font-semibold border ${
+                      theme === "light"
+                        ? "bg-white border-gray-300 text-gray-700"
+                        : "bg-[#161616] border-gray-700 text-gray-200"
+                    }`}
+                    title={user.email}
+                  >
+                    {(user.email?.[0] || "U").toUpperCase()}
+                  </div>
                   <button
                     onClick={() => void onSignOut()}
                     disabled={loadingAuth}
-                    className={`px-3 py-1.5 text-sm rounded-full border transition ${
+                    className={`hidden md:inline-flex px-3 py-1.5 text-sm rounded-full border transition ${
                       theme === "light"
                         ? "bg-white border-gray-300 text-gray-800"
                         : "bg-[#161616] border-gray-700 text-gray-200"
@@ -118,7 +199,7 @@ export default function ChatHeader() {
                   </button>
                 </>
               ) : (
-                <div className="flex items-center gap-2">
+                <div className="hidden md:flex items-center gap-2">
                   <button
                     onClick={() => openAuth("login")}
                     className={`px-4 py-1.5 text-sm rounded-full border transition ${
