@@ -56,7 +56,7 @@ export default function HomePage() {
           {/* Scrollable area */}
           <div
             ref={scrollRef}
-            className="flex-1 overflow-y-auto px-4 pt-4 pb-[150px] max-w-3xl mx-auto w-full"
+            className="flex-1 overflow-y-auto px-4 pt-4 pb-[220px] max-w-3xl mx-auto w-full"
           >
             {messages.length === 0 && !thinking ? (
               <EmptyChatScreen
@@ -92,7 +92,13 @@ export default function HomePage() {
           </div>
 
           {/* BOTTOM SECTION */}
-          <div className="fixed bottom-0 left-0 right-0 flex flex-col items-center z-40 pb-3">
+          <div
+            className={`fixed bottom-0 left-0 right-0 flex flex-col items-center z-40 pb-3 pt-2 border-t ${
+              theme === "light"
+                ? "bg-white border-gray-200"
+                : "bg-[#0d0d0d] border-gray-800"
+            }`}
+          >
 
             <ChatInputBar
               question={question}

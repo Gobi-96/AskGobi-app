@@ -72,8 +72,8 @@ export default function ChatInputBar({
       {/* ⭐ NOT FIXED ANYMORE */}
       <form
         onSubmit={handleSubmit}
-        className={`w-full p-4 shadow-xl backdrop-blur-md z-40 ${
-          theme === "light" ? "bg-white/80" : "bg-[#0d0d0d]/80"
+        className={`w-full p-4 shadow-xl z-40 ${
+          theme === "light" ? "bg-white" : "bg-[#0d0d0d]"
         }`}
       >
         <div
@@ -91,7 +91,7 @@ export default function ChatInputBar({
             maxLength={500}
             onKeyDown={handleKeyDown}
             onChange={(e) => setQuestion(e.target.value)}
-            className={`flex-1 resize-none overflow-y-auto 
+            className={`flex-1 resize-none overflow-y-hidden 
               h-[44px] min-h-[44px] max-h-[120px]
               bg-transparent text-base sm:text-lg
               leading-[1.4] px-1 py-2
