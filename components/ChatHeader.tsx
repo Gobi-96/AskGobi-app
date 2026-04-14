@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Moon, Sun, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import {
@@ -31,6 +31,7 @@ export default function ChatHeader({
   const [authMessage, setAuthMessage] = useState("");
   const [authError, setAuthError] = useState("");
   const [showMobileAccountMenu, setShowMobileAccountMenu] = useState(false);
+  const mobileAccountMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let ignore = false;
@@ -58,10 +59,21 @@ export default function ChatHeader({
     };
   }, []);
 
+  useEffect(() => {
+    if (!showMobileAccountMenu) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (mobileAccountMenuRef.current?.contains(target)) return;
+      setShowMobileAccountMenu(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [showMobileAccountMenu]);
+
   async function onSignIn() {
     setLoadingAuth(true);
     try {
-      startGoogleSignIn(window.location.origin);
+      startGoogleSignIn();
     } finally {
       setLoadingAuth(false);
     }
@@ -87,7 +99,7 @@ export default function ChatHeader({
     setAuthError("");
     setAuthMessage("");
     try {
-      await sendMagicLink(email.trim(), window.location.origin);
+      await sendMagicLink(email.trim());
       setAuthMessage("Magic link sent. Check your email to continue.");
     } catch (err: any) {
       setAuthError(err?.message || "Could not send magic link.");
@@ -128,44 +140,11 @@ export default function ChatHeader({
           )}
           <button
             type="button"
-            onClick={() => {
-              if (user?.email) setShowMobileAccountMenu((v) => !v);
-            }}
             className="text-2xl md:text-3xl font-bold"
           >
             <span className={theme === "light" ? "text-gray-900" : "text-white"}>Ask</span>
             <span className="text-blue-500">Gobi</span>
           </button>
-          {showMobileAccountMenu && user?.email && (
-            <div
-              className={`md:hidden absolute left-3 top-14 z-[75] min-w-[170px] rounded-lg border shadow-lg ${
-                theme === "light"
-                  ? "bg-white border-gray-200 text-gray-900"
-                  : "bg-[#17181d] border-gray-700 text-gray-100"
-              }`}
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  setShowMobileAccountMenu(false);
-                  openAuth("login");
-                }}
-                className="w-full text-left px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5"
-              >
-                Switch account
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowMobileAccountMenu(false);
-                  void onSignOut();
-                }}
-                className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-black/5 dark:hover:bg-white/5"
-              >
-                Sign out
-              </button>
-            </div>
-          )}
         </div>
 
         <div className="flex items-center gap-3">
@@ -176,15 +155,57 @@ export default function ChatHeader({
                   <span className={`hidden md:inline text-sm ${theme === "light" ? "text-gray-700" : "text-gray-300"}`}>
                     {user.email}
                   </span>
-                  <div
-                    className={`md:hidden h-8 w-8 rounded-full inline-flex items-center justify-center text-sm font-semibold border ${
-                      theme === "light"
-                        ? "bg-white border-gray-300 text-gray-700"
-                        : "bg-[#161616] border-gray-700 text-gray-200"
-                    }`}
-                    title={user.email}
-                  >
-                    {(user.email?.[0] || "U").toUpperCase()}
+                  <div ref={mobileAccountMenuRef} className="relative md:hidden">
+                    <button
+                      type="button"
+                      onClick={() => setShowMobileAccountMenu((v) => !v)}
+                      className={`h-10 w-10 rounded-full inline-flex items-center justify-center text-sm font-semibold border ${
+                        theme === "light"
+                          ? "bg-white border-gray-300 text-gray-700"
+                          : "bg-[#161616] border-gray-700 text-gray-200"
+                      }`}
+                      title={user.email}
+                      aria-label="Open account menu"
+                    >
+                      {(user.email?.[0] || "U").toUpperCase()}
+                    </button>
+                    {showMobileAccountMenu && (
+                      <div
+                        className={`absolute right-0 top-12 z-[75] min-w-[220px] rounded-lg border shadow-lg ${
+                          theme === "light"
+                            ? "bg-white border-gray-200 text-gray-900"
+                            : "bg-[#17181d] border-gray-700 text-gray-100"
+                        }`}
+                      >
+                        <div
+                          className={`px-3 py-2 text-xs border-b ${
+                            theme === "light" ? "border-gray-200 text-gray-600" : "border-gray-700 text-gray-300"
+                          }`}
+                        >
+                          Signed in as {user.email}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowMobileAccountMenu(false);
+                            openAuth("login");
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5"
+                        >
+                          Use another Google account
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowMobileAccountMenu(false);
+                            void onSignOut();
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-black/5 dark:hover:bg-white/5"
+                        >
+                          Sign out
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <button
                     onClick={() => void onSignOut()}
@@ -199,7 +220,19 @@ export default function ChatHeader({
                   </button>
                 </>
               ) : (
-                <div className="hidden md:flex items-center gap-2">
+                <>
+                  <button
+                    onClick={() => openAuth("login")}
+                    className={`md:hidden px-3 h-10 inline-flex items-center justify-center rounded-full border text-sm font-medium ${
+                      theme === "light"
+                        ? "bg-white border-gray-300 text-gray-700"
+                        : "bg-[#161616] border-gray-700 text-gray-200"
+                    }`}
+                    aria-label="Open login options"
+                  >
+                    Login
+                  </button>
+                  <div className="hidden md:flex items-center gap-2">
                   <button
                     onClick={() => openAuth("login")}
                     className={`px-4 py-1.5 text-sm rounded-full border transition ${
@@ -220,7 +253,8 @@ export default function ChatHeader({
                   >
                     Sign up for free
                   </button>
-                </div>
+                  </div>
+                </>
               )}
             </>
           )}

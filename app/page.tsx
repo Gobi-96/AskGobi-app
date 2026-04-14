@@ -24,7 +24,7 @@ import ChatMessages from "@/components/ChatMessages";
 import EmptyChatScreen from "@/components/EmptyChatScreen";
 import IntroScreen from "@/components/IntroScreen";
 import { useAskGobi } from "@/app/hooks/useAskGobi";
-import { requestAuthModal } from "@/lib/supabaseAuth";
+import { requestAuthModal, requestAuthSignOut } from "@/lib/supabaseAuth";
 
 export default function HomePage() {
   const {
@@ -64,6 +64,7 @@ export default function HomePage() {
   const [desktopSidebarExpanded, setDesktopSidebarExpanded] = useState(true);
   const [search, setSearch] = useState("");
   const [showCreateProjectModal, setShowCreateProjectModal] = useState(false);
+  const [showAboutDeveloperModal, setShowAboutDeveloperModal] = useState(false);
   const [projectNameDraft, setProjectNameDraft] = useState("");
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [projectsOpen, setProjectsOpen] = useState(true);
@@ -80,6 +81,7 @@ export default function HomePage() {
   const [deleteTarget, setDeleteTarget] = useState<
     { type: "chat" | "project"; id: string; title: string } | null
   >(null);
+  const [showSidebarAccountMenu, setShowSidebarAccountMenu] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -104,6 +106,17 @@ export default function HomePage() {
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, []);
+
+  useEffect(() => {
+    if (!showSidebarAccountMenu) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("[data-sidebar-account-menu]")) return;
+      setShowSidebarAccountMenu(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [showSidebarAccountMenu]);
 
   const searchResults = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -647,6 +660,7 @@ export default function HomePage() {
                   >
                     <button
                       type="button"
+                      onClick={() => setShowAboutDeveloperModal(true)}
                       className={`w-full inline-flex items-center gap-2 px-2.5 py-2 rounded-lg text-sm transition ${
                         theme === "light"
                           ? "text-gray-900 hover:bg-gray-100"
@@ -658,13 +672,18 @@ export default function HomePage() {
                       About developer
                     </button>
                     <div
+                      data-sidebar-account-menu
                       className={`w-full flex items-center justify-between rounded-xl border px-3 py-2 ${
                         theme === "light"
                           ? "bg-white border-gray-300"
                           : "bg-[#17181d] border-gray-700"
                       }`}
                     >
-                      <div className="flex items-center gap-2 min-w-0">
+                      <button
+                        type="button"
+                        onClick={() => setShowSidebarAccountMenu((v) => !v)}
+                        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                      >
                         <div
                           className={`h-8 w-8 rounded-full inline-flex items-center justify-center text-sm font-semibold ${
                             theme === "light" ? "bg-gray-100 text-gray-700" : "bg-[#101114] text-gray-200"
@@ -675,7 +694,37 @@ export default function HomePage() {
                         <div className="text-xs opacity-80 truncate">
                           {currentUserEmail}
                         </div>
-                      </div>
+                      </button>
+                      {showSidebarAccountMenu && (
+                        <div
+                          className={`absolute left-3 right-3 bottom-[72px] z-[75] rounded-lg border shadow-lg ${
+                            theme === "light"
+                              ? "bg-white border-gray-200 text-gray-900"
+                              : "bg-[#17181d] border-gray-700 text-gray-100"
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowSidebarAccountMenu(false);
+                              requestAuthModal("login");
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5"
+                          >
+                            Use another Google account
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowSidebarAccountMenu(false);
+                              requestAuthSignOut();
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-black/5 dark:hover:bg-white/5"
+                          >
+                            Sign out
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -686,6 +735,7 @@ export default function HomePage() {
                   >
                     <button
                       type="button"
+                      onClick={() => setShowAboutDeveloperModal(true)}
                       className={`w-full inline-flex items-center gap-2 px-2.5 py-2 rounded-lg text-sm transition ${
                         theme === "light"
                           ? "text-gray-900 hover:bg-gray-100"
@@ -727,6 +777,7 @@ export default function HomePage() {
               >
                 <button
                   type="button"
+                  onClick={() => setShowAboutDeveloperModal(true)}
                   className={`w-full inline-flex items-center gap-2 px-2.5 py-2 rounded-lg text-sm transition ${
                     theme === "light"
                       ? "text-gray-900 hover:bg-gray-100"
@@ -739,20 +790,57 @@ export default function HomePage() {
                 </button>
                 {isAuthed ? (
                   <div
+                    data-sidebar-account-menu
                     className={`w-full flex items-center rounded-xl border px-3 py-2 ${
                       theme === "light"
                         ? "bg-white border-gray-300"
                         : "bg-[#17181d] border-gray-700"
                     }`}
                   >
-                    <div
-                      className={`h-8 w-8 rounded-full inline-flex items-center justify-center text-sm font-semibold ${
-                        theme === "light" ? "bg-gray-100 text-gray-700" : "bg-[#101114] text-gray-200"
-                      }`}
+                    <button
+                      type="button"
+                      onClick={() => setShowSidebarAccountMenu((v) => !v)}
+                      className="flex min-w-0 flex-1 items-center text-left"
                     >
-                      {(currentUserEmail?.[0] || "U").toUpperCase()}
-                    </div>
-                    <div className="ml-2 text-xs opacity-80 truncate">{currentUserEmail}</div>
+                      <div
+                        className={`h-8 w-8 rounded-full inline-flex items-center justify-center text-sm font-semibold ${
+                          theme === "light" ? "bg-gray-100 text-gray-700" : "bg-[#101114] text-gray-200"
+                        }`}
+                      >
+                        {(currentUserEmail?.[0] || "U").toUpperCase()}
+                      </div>
+                      <div className="ml-2 text-xs opacity-80 truncate">{currentUserEmail}</div>
+                    </button>
+                    {showSidebarAccountMenu && (
+                      <div
+                        className={`absolute left-3 right-3 bottom-[72px] z-[75] rounded-lg border shadow-lg ${
+                          theme === "light"
+                            ? "bg-white border-gray-200 text-gray-900"
+                            : "bg-[#17181d] border-gray-700 text-gray-100"
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowSidebarAccountMenu(false);
+                            requestAuthModal("login");
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5"
+                        >
+                          Use another Google account
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowSidebarAccountMenu(false);
+                            requestAuthSignOut();
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-black/5 dark:hover:bg-white/5"
+                        >
+                          Sign out
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div
@@ -840,6 +928,104 @@ export default function HomePage() {
                   >
                     Create project
                   </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showAboutDeveloperModal && (
+            <div className="fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div
+                className={`w-full max-w-lg rounded-2xl border p-6 ${
+                  theme === "light"
+                    ? "bg-white border-gray-200 text-gray-900"
+                    : "bg-[#15161b] border-gray-700 text-gray-100"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-3xl font-semibold">About developer</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowAboutDeveloperModal(false)}
+                    className={`h-8 w-8 inline-flex items-center justify-center rounded-full border ${
+                      theme === "light"
+                        ? "bg-white border-gray-300 text-gray-700"
+                        : "bg-[#101114] border-gray-700 text-gray-200"
+                    }`}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+
+                <div
+                  className={`rounded-2xl border p-4 ${
+                    theme === "light"
+                      ? "bg-gray-50 border-gray-200"
+                      : "bg-[#101114] border-gray-700"
+                  }`}
+                >
+                  <p className="text-xl font-semibold">Gobishankar Rathinam</p>
+                  <p className={`mt-1 text-sm ${theme === "light" ? "text-gray-600" : "text-gray-300"}`}>
+                    gobishankar.rathinam@gmail.com
+                  </p>
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  <a
+                    href="https://www.linkedin.com/in/gobishankar-rathinam"
+                    target="_blank"
+                    rel="noreferrer"
+                    className={`w-full inline-flex items-center justify-between rounded-xl border px-4 py-3 transition ${
+                      theme === "light"
+                        ? "bg-white border-gray-300 hover:bg-gray-50"
+                        : "bg-[#101114] border-gray-700 hover:bg-[#17181d]"
+                    }`}
+                  >
+                    <span className="inline-flex items-center gap-3">
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#0A66C2] text-white">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                          <path d="M6.94 8.5H3.56V19.5H6.94V8.5ZM5.25 3C4.17 3 3.5 3.71 3.5 4.64C3.5 5.55 4.15 6.29 5.2 6.29H5.22C6.33 6.29 7 5.55 7 4.64C6.98 3.71 6.33 3 5.25 3ZM20.5 12.76C20.5 9.38 18.69 7.8 16.28 7.8C14.33 7.8 13.45 8.87 12.96 9.62V8.5H9.58C9.62 9.24 9.58 19.5 9.58 19.5H12.96V13.36C12.96 13.03 12.98 12.7 13.08 12.46C13.34 11.8 13.94 11.12 14.93 11.12C16.23 11.12 16.75 12.11 16.75 13.56V19.5H20.13V13.17C20.13 9.78 18.33 7.8 16.28 7.8Z" />
+                        </svg>
+                      </span>
+                      <span>
+                        <span className="block text-sm font-semibold">LinkedIn</span>
+                        <span className={`block text-xs ${theme === "light" ? "text-gray-500" : "text-gray-400"}`}>
+                          linkedin.com/in/gobishankar-rathinam
+                        </span>
+                      </span>
+                    </span>
+                    <span className={`text-sm ${theme === "light" ? "text-gray-500" : "text-gray-400"}`}>Open</span>
+                  </a>
+
+                  <a
+                    href="https://github.com/Gobi-96"
+                    target="_blank"
+                    rel="noreferrer"
+                    className={`w-full inline-flex items-center justify-between rounded-xl border px-4 py-3 transition ${
+                      theme === "light"
+                        ? "bg-white border-gray-300 hover:bg-gray-50"
+                        : "bg-[#101114] border-gray-700 hover:bg-[#17181d]"
+                    }`}
+                  >
+                    <span className="inline-flex items-center gap-3">
+                      <span
+                        className={`inline-flex h-9 w-9 items-center justify-center rounded-full ${
+                          theme === "light" ? "bg-gray-900 text-white" : "bg-white text-gray-900"
+                        }`}
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                          <path d="M12 2C6.48 2 2 6.59 2 12.25C2 16.78 4.87 20.62 8.84 21.98C9.34 22.08 9.52 21.76 9.52 21.49C9.52 21.25 9.51 20.46 9.5 19.42C6.73 20.04 6.14 18.2 6.14 18.2C5.68 17 5.03 16.68 5.03 16.68C4.12 16.04 5.1 16.06 5.1 16.06C6.1 16.13 6.63 17.11 6.63 17.11C7.52 18.68 8.97 18.23 9.54 17.96C9.63 17.3 9.89 16.85 10.18 16.59C7.97 16.33 5.65 15.44 5.65 11.47C5.65 10.34 6.04 9.42 6.68 8.69C6.58 8.43 6.24 7.38 6.78 5.96C6.78 5.96 7.62 5.68 9.5 6.99C10.3 6.76 11.15 6.64 12 6.64C12.85 6.64 13.7 6.76 14.5 6.99C16.38 5.68 17.22 5.96 17.22 5.96C17.76 7.38 17.42 8.43 17.32 8.69C17.96 9.42 18.35 10.34 18.35 11.47C18.35 15.45 16.02 16.33 13.8 16.58C14.17 16.92 14.5 17.58 14.5 18.6C14.5 20.06 14.49 21.14 14.49 21.49C14.49 21.76 14.67 22.09 15.18 21.98C19.14 20.62 22 16.78 22 12.25C22 6.59 17.52 2 12 2Z" />
+                        </svg>
+                      </span>
+                      <span>
+                        <span className="block text-sm font-semibold">GitHub</span>
+                        <span className={`block text-xs ${theme === "light" ? "text-gray-500" : "text-gray-400"}`}>
+                          github.com/Gobi-96
+                        </span>
+                      </span>
+                    </span>
+                    <span className={`text-sm ${theme === "light" ? "text-gray-500" : "text-gray-400"}`}>Open</span>
+                  </a>
                 </div>
               </div>
             </div>
