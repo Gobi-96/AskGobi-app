@@ -1,5 +1,6 @@
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "";
 const TOKEN_KEY = "askgobi_supabase_access_token";
 export const AUTH_CHANGED_EVENT = "askgobi-auth-changed";
 export const AUTH_OPEN_EVENT = "askgobi-auth-open";
@@ -14,14 +15,46 @@ export function hasSupabaseConfig(): boolean {
   return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 }
 
+function normalizeRedirectUrl(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const withProtocol =
+    trimmed.startsWith("http://") || trimmed.startsWith("https://")
+      ? trimmed
+      : `https://${trimmed}`;
+  return withProtocol.replace(/\/+$/, "");
+}
+
+function isLocalOrigin(value: string): boolean {
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(value);
+}
+
+export function getAuthRedirectUrl(redirectTo?: string): string {
+  if (redirectTo) return normalizeRedirectUrl(redirectTo);
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  if (origin && !isLocalOrigin(origin)) {
+    return normalizeRedirectUrl(origin);
+  }
+
+  if (PUBLIC_SITE_URL) {
+    return normalizeRedirectUrl(PUBLIC_SITE_URL);
+  }
+
+  return normalizeRedirectUrl(origin || "http://localhost:3000");
+}
+
 export function startGoogleSignIn(redirectTo?: string) {
   if (!hasSupabaseConfig()) {
     throw new Error("Missing Supabase env config");
   }
-  const redirect = redirectTo || window.location.origin;
-  const url = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(
-    redirect
-  )}`;
+  const redirect = getAuthRedirectUrl(redirectTo);
+  const params = new URLSearchParams({
+    provider: "google",
+    redirect_to: redirect,
+    prompt: "select_account",
+  });
+  const url = `${SUPABASE_URL}/auth/v1/authorize?${params.toString()}`;
   window.location.href = url;
 }
 
@@ -29,7 +62,7 @@ export async function sendMagicLink(email: string, redirectTo?: string): Promise
   if (!hasSupabaseConfig()) {
     throw new Error("Missing Supabase env config");
   }
-  const redirect = redirectTo || window.location.origin;
+  const redirect = getAuthRedirectUrl(redirectTo);
   const res = await fetch(`${SUPABASE_URL}/auth/v1/otp`, {
     method: "POST",
     headers: {
