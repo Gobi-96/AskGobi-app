@@ -1,145 +1,72 @@
 "use client";
-import React, { useState, useRef, useEffect } from "react";
+import { useRef, useEffect, type FormEvent, type KeyboardEvent } from "react";
+import { ArrowUp, Globe2, Square } from "lucide-react";
+import { needsWebSearch } from "@/lib/chatInput";
 
 interface ChatInputBarProps {
   question: string;
   setQuestion: (value: string) => void;
   thinking: boolean;
   abortController: AbortController | null;
-  theme: string | undefined;
   askGobi: (query: string, onlineMode?: boolean) => void;
-  setThinking: (v: boolean) => void;
+  onlineMode: boolean;
+  setOnlineMode: (value: boolean) => void;
+  autoFocus?: boolean;
 }
 
-export default function ChatInputBar({
-  question,
-  setQuestion,
-  thinking,
-  abortController,
-  theme,
-  askGobi,
-  setThinking,
-}: ChatInputBarProps) {
+export default function ChatInputBar({ question, setQuestion, thinking, abortController,
+  askGobi, onlineMode, setOnlineMode, autoFocus = false }: ChatInputBarProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const automaticSearch = needsWebSearch(question);
+  const searchEnabled = onlineMode || automaticSearch;
 
-  const [onlineMode, setOnlineMode] = useState(false);
-  const [showPopup, setShowPopup] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-
-  // auto detect online mode
-  function autoOnline(q: string) {
-    return /today|latest|recent|version|online|live|now|current|new|news|update|price|weather|trending|launch|launched|release|released|announced/i.test(q);
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!question.trim()) return;
-
-    const finalOnline = onlineMode || autoOnline(question);
-    askGobi(question, finalOnline);
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    // Keep the visitor's next draft intact while a response is still arriving.
+    if (thinking || !question.trim()) return;
+    askGobi(question.trim(), searchEnabled);
     setQuestion("");
-
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "44px";
-    }
   };
-
-  // auto-resize
   useEffect(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-
-    el.style.height = "44px";
-    const scrollH = el.scrollHeight;
-    if (scrollH > 44) el.style.height = Math.min(scrollH, 120) + "px";
+    const element = textareaRef.current;
+    if (!element) return;
+    element.style.height = "52px";
+    element.style.height = Math.min(element.scrollHeight, 160) + "px";
   }, [question]);
+  useEffect(() => { if (autoFocus) textareaRef.current?.focus(); }, [autoFocus]);
 
-  // enter = submit
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e as any);
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) {
+      handleSubmit(event);
     }
   };
 
   return (
-    <>
-      {showPopup && (
-        <div className="fixed bottom-20 right-6 bg-black text-white px-4 py-2 rounded-lg shadow-lg text-sm opacity-90 animate-fade z-[999]">
-          🌐 Online search enabled — may be slower
-        </div>
-      )}
-
-      {/* ⭐ NOT FIXED ANYMORE */}
-      <form
-        onSubmit={handleSubmit}
-        className={`w-full p-4 shadow-xl z-40 ${
-          theme === "light" ? "bg-white" : "bg-[#0d0d0d]"
-        }`}
-      >
-        <div
-          className={`max-w-3xl mx-auto flex items-end gap-2 min-h-[56px] border rounded-2xl px-3 py-2 transition-colors ${
-            theme === "light"
-              ? "border-gray-300 bg-gray-100"
-              : "border-gray-700 bg-[#111]"
-          }`}
-        >
-          {/* TEXTAREA */}
-          <textarea
-            ref={textareaRef}
-            placeholder="Ask anything..."
-            value={question}
-            maxLength={500}
-            onKeyDown={handleKeyDown}
-            onChange={(e) => setQuestion(e.target.value)}
-            className={`flex-1 resize-none overflow-y-hidden 
-              h-[44px] min-h-[44px] max-h-[120px]
-              bg-transparent text-base sm:text-lg
-              leading-[1.4] px-1 py-2
-              outline-none
-              ${theme === "light"
-                ? "text-gray-900 placeholder-gray-500"
-                : "text-white placeholder-gray-500"
-              }`}
-          />
-
-          {/* GLOBE BUTTON */}
-          <button
-            type="button"
-            onClick={() => {
-              setOnlineMode((prev) => {
-                const next = !prev;
-                if (next) {
-                  setShowPopup(true);
-                  setTimeout(() => setShowPopup(false), 1800);
-                }
-                return next;
-              });
-            }}
-            className={`px-3 py-2 rounded-xl text-lg transition ${
-              autoOnline(question) || onlineMode
-                ? "bg-blue-600 text-white"
-                : "bg-gray-700 text-gray-300"
-            }`}
-          >
-            🌐
-          </button>
-
-          {/* ASK / STOP */}
-          <button
-            type={thinking ? "button" : "submit"}
-            className={`min-w-[70px] sm:min-w-[90px] h-[44px]
-              flex items-center justify-center rounded-xl font-semibold
-              transition text-white
-              ${
-                thinking
-                  ? "bg-red-600 hover:bg-red-700 animate-pulse"
-                  : "bg-blue-600 hover:bg-blue-700"
-              }`}
-          >
-            {thinking ? "Stop" : "Ask"}
+    <form className="chat-composer" onSubmit={handleSubmit} aria-label="Ask Gobi">
+      <label className="sr-only" htmlFor="chat-question">Your question</label>
+      <textarea id="chat-question" ref={textareaRef} placeholder={thinking ? "Your next question can wait here…" : "Ask anything. Start anywhere."}
+        value={question} maxLength={500} rows={2} onChange={(event) => setQuestion(event.target.value)}
+        onKeyDown={handleKeyDown} aria-describedby="chat-search-note" />
+      <div className="chat-composer-tools">
+        <button type="button" className={`chat-search-toggle ${searchEnabled ? "is-active" : ""}`}
+          aria-label="Always use web search" aria-pressed={onlineMode}
+          onClick={() => setOnlineMode(!onlineMode)}>
+          <Globe2 size={16} aria-hidden="true" /> Web search <span>{onlineMode ? "On" : "Auto"}</span>
+        </button>
+        <div className="chat-send-tools">
+          {question.length > 400 && <span className="chat-counter">{question.length}/500</span>}
+          <button type={thinking ? "button" : "submit"} className={`chat-send ${thinking ? "is-stopping" : ""}`}
+            disabled={!thinking && !question.trim()} onClick={thinking ? () => abortController?.abort() : undefined}
+            aria-label={thinking ? "Stop response" : "Send question"}>
+            {thinking ? <Square size={14} fill="currentColor" aria-hidden="true" /> : <ArrowUp size={19} aria-hidden="true" />}
+            <span>{thinking ? "Stop" : "Ask"}</span>
           </button>
         </div>
-      </form>
-    </>
+      </div>
+      <p id="chat-search-note" className="chat-search-note">
+        {onlineMode ? "Web search is on. Lookups may take a little longer." : automaticSearch
+          ? "This question will use web search for current information." : "Search runs automatically for time-sensitive questions."}
+      </p>
+    </form>
   );
 }

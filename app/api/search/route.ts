@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { clientBucket, RateLimiter } from "@/lib/server/limits";
+const limiter = new RateLimiter(6);
 
 export const dynamic = "force-dynamic";
 
@@ -33,9 +35,10 @@ function boostQuery(original: string) {
 }
 
 export async function GET(req: NextRequest) {
+  if (!limiter.allow(clientBucket(req))) return NextResponse.json({ error: "Try again in a minute." }, { status: 429, headers: { "Retry-After": "60" } });
   const query = req.nextUrl.searchParams.get("q");
 
-  if (!query) {
+  if (!query?.trim() || query.length > 500) {
     return NextResponse.json({ error: "Missing query" }, { status: 400 });
   }
 
@@ -45,7 +48,7 @@ export async function GET(req: NextRequest) {
 
     const url = `${WORKER_URL}/?q=${encodeURIComponent(enhanced)}`;
 
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.any([req.signal, AbortSignal.timeout(8000)]) });
 
     if (!res.ok) {
       return NextResponse.json(
@@ -57,7 +60,7 @@ export async function GET(req: NextRequest) {
     const data = await res.json();
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Search error:", error);
+    console.warn("Search temporarily unavailable.");
     return NextResponse.json(
       { error: "Search failed" },
       { status: 500 }

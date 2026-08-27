@@ -2,13 +2,8 @@
 const nextConfig = {
   reactStrictMode: true,
 
-  // ✅ Allow Cloudflare + custom domain for dev access
-  experimental: {
-    allowedDevOrigins: [
-      "https://www.askgobi.net",
-      "https://askgobi.net"
-    ],
-  },
+  // Separate local preview output from release builds.
+  distDir: process.env.NEXT_BUILD_DIR || ".next",
 };
 
 export default nextConfig;
