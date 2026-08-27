@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { sanitize, truncateWords, formatToBullets } from "@/components/helpers/textUtils";
+import { consumeAnswer } from "@/lib/ndjson";
 import {
   AUTH_CHANGED_EVENT,
   fetchSupabaseUser,
@@ -30,6 +30,8 @@ interface Message {
   answer: string;
   answerHistory: string[];
   answerIndex: number;
+  status?: "complete" | "error" | "stopped";
+  notice?: string;
 }
 
 function toTitleFromPrompt(prompt: string): string {
@@ -69,8 +71,9 @@ export function useAskGobi() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [thinking, setThinking] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const [thinkingLabel, setThinkingLabel] = useState("🧠 Thinking...");
+  const [thinkingLabel, setThinkingLabel] = useState("Thinking…");
   const [abortController, setAbortController] = useState<AbortController | null>(null);
+  useEffect(() => () => abortController?.abort(), [abortController]);
   const [conversations, setConversations] = useState<ConversationRow[]>([]);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -142,6 +145,7 @@ export function useAskGobi() {
   }, [loadHistory]);
 
   async function openConversation(conversationId: string) {
+    if (thinking) return;
     const token = getStoredToken();
     if (!token) return;
     setHistoryLoading(true);
@@ -160,6 +164,7 @@ export function useAskGobi() {
   }
 
   function startNewConversation(projectId?: string | null) {
+    if (thinking) return;
     if (typeof projectId !== "undefined") {
       setSelectedProjectId(projectId);
     }
@@ -225,7 +230,9 @@ export function useAskGobi() {
     const replaceLast = Boolean(opts.replaceLast);
     const preserveLastHistory = Boolean(opts.preserveLastHistory);
     const isFirstQuestion = !replaceLast && messages.length === 0;
-    const context = (replaceLast ? messages.slice(0, -1) : messages).slice(-3);
+    const context = (replaceLast ? messages.slice(0, -1) : messages).slice(-3).map((message) => ({
+      question: message.question.slice(0, 500), answer: message.answer.slice(0, 4000),
+    }));
     const previous = replaceLast ? messages[messages.length - 1] : null;
     const previousHistory = preserveLastHistory
       ? previous?.answerHistory?.length
@@ -257,10 +264,10 @@ export function useAskGobi() {
     setAbortController(controller);
 
     try {
-      setThinkingLabel("🧠 Thinking...");
+      setThinkingLabel("Thinking…");
       if (isFirstQuestion) {
         phaseTimer = setTimeout(() => {
-          setThinkingLabel("💭 Firing neural circuits...");
+          setThinkingLabel("Still working on your question…");
         }, 3000);
       }
 
@@ -282,53 +289,12 @@ export function useAskGobi() {
         throw new Error(errMsg);
       }
 
-      const reader = res.body?.getReader();
-      const decoder = new TextDecoder();
-      if (!reader) throw new Error("No stream");
-
-      let partial = "";
-      let typingShown = false;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n").filter(Boolean);
-
-        for (const line of lines) {
-          try {
-            const json = JSON.parse(line);
-            if (!json.response) continue;
-
-            partial += json.response;
-            let cleaned = sanitize(partial);
-            cleaned = truncateWords(cleaned, 180);
-            const formatted = formatToBullets(cleaned);
-
-            if (!typingShown) {
-              setIsTyping(true);
-              typingShown = true;
-              if (phaseTimer) {
-                clearTimeout(phaseTimer);
-                phaseTimer = null;
-              }
-            }
-
-            setMessages((prev) =>
-              prev.map((m, i) => (i === prev.length - 1 ? { ...m, answer: formatted } : m))
-            );
-          } catch {}
-        }
-      }
-
-      let cleanedEnd = sanitize(partial.trim());
-      if (!cleanedEnd) {
-        cleanedEnd = "No response from local model. Check Ollama logs and try again.";
-      } else if (!/[.?!…]$/.test(cleanedEnd)) {
-        cleanedEnd += ".";
-      }
-      const finalCleaned = formatToBullets(truncateWords(cleanedEnd, 180));
+      const finalText = await consumeAnswer(res, (partial) => {
+        if (phaseTimer) { clearTimeout(phaseTimer); phaseTimer = null; }
+        setIsTyping(true);
+        setMessages((prev) => prev.map((m, i) => i === prev.length - 1 ? { ...m, answer: partial } : m));
+      });
+      const finalCleaned = finalText;
 
       setMessages((prev) =>
         prev.map((m, i) =>
@@ -336,6 +302,7 @@ export function useAskGobi() {
             ? {
                 ...m,
                 answer: finalCleaned,
+                status: "complete",
                 answerHistory: [...m.answerHistory, finalCleaned],
                 answerIndex: m.answerHistory.length,
               }
@@ -343,25 +310,27 @@ export function useAskGobi() {
         )
       );
 
-      await persistExchange({
-        query,
-        answer: finalCleaned,
-        replaceLast,
-        preserveLastHistory,
-      });
+      try {
+        await persistExchange({ query, answer: finalCleaned, replaceLast, preserveLastHistory });
+      } catch {
+        setMessages((prev) => prev.map((m, i) => i === prev.length - 1
+          ? { ...m, notice: "Your answer is here, but we couldn’t save it to your history." } : m));
+      }
     } catch (err: any) {
       const msg =
         err?.name === "AbortError"
           ? "Stopped by user."
           : err?.message || "Request failed. Check Ollama connection and model.";
 
-      setMessages((prev) => prev.map((m, i) => (i === prev.length - 1 ? { ...m, answer: msg } : m)));
+      setMessages((prev) => prev.map((m, i) => (i === prev.length - 1
+        ? { ...m, status: err?.name === "AbortError" ? "stopped" : "error", notice: msg }
+        : m)));
       console.error(err);
     } finally {
       if (phaseTimer) clearTimeout(phaseTimer);
       setThinking(false);
       setIsTyping(false);
-      setThinkingLabel("🧠 Thinking...");
+      setThinkingLabel("Thinking…");
       setAbortController(null);
     }
   }
@@ -404,6 +373,8 @@ export function useAskGobi() {
         ...last,
         answerIndex: nextIndex,
         answer: last.answerHistory[nextIndex],
+        status: "complete",
+        notice: undefined,
       };
       return next;
     });

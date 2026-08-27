@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Moon, Sun, X } from "lucide-react";
+import Link from "next/link";
+import { Moon, Sun, X, Menu, ArrowUpRight } from "lucide-react";
 import { useTheme } from "next-themes";
 import {
   AUTH_OPEN_EVENT,
@@ -22,7 +23,7 @@ export default function ChatHeader({
   onMenuClick?: () => void;
   sidebarExpanded?: boolean;
 }) {
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme: theme, setTheme } = useTheme();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -119,7 +120,7 @@ export default function ChatHeader({
   return (
     <>
       <header
-        className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-3 md:px-6 py-3 md:py-4 backdrop-blur-md
+        className={`chat-header fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-3 md:px-6 py-3 md:py-4 backdrop-blur-md
           ${sidebarExpanded ? "md:left-[300px]" : "md:left-[64px]"}
           ${theme === "light"
             ? "bg-white/80 border-b border-gray-200"
@@ -130,24 +131,26 @@ export default function ChatHeader({
             <button
               type="button"
               onClick={onMenuClick}
-              className={`md:hidden inline-flex items-center justify-center text-xl leading-none ${
+              className={`md:hidden h-11 w-11 inline-flex items-center justify-center text-xl leading-none ${
                 theme === "light" ? "text-gray-800" : "text-gray-200"
               }`}
               aria-label="Open chats menu"
             >
-              ≡
+              <Menu size={20} />
             </button>
           )}
-          <button
-            type="button"
-            className="text-2xl md:text-3xl font-bold"
+          <Link
+            href="/"
+            aria-label="Back to curiosity playground"
+            className="chat-brand"
           >
-            <span className={theme === "light" ? "text-gray-900" : "text-white"}>Ask</span>
-            <span className="text-blue-500">Gobi</span>
-          </button>
+            ask<span>gobi</span><i />
+          </Link>
+          <span className="chat-header-section">ASK ANYTHING</span>
         </div>
 
         <div className="flex items-center gap-3">
+          <Link href="/" className="chat-home-link">Playground <ArrowUpRight size={14} /></Link>
           {hasSupabaseConfig() && (
             <>
               {user?.email ? (
@@ -261,6 +264,7 @@ export default function ChatHeader({
 
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            aria-label="Toggle color theme"
             className={`p-2 rounded-full border transition
               ${theme === "light"
                 ? "bg-gray-200 hover:bg-gray-300 border-gray-300 text-gray-800"
