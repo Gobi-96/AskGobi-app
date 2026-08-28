@@ -5,10 +5,10 @@ export const metadata = {
   metadataBase: new URL("https://askgobi.net"),
   title: "AskGobi · Curious? Apparently you are.",
   description:
-    "A little detour for your brain. Discover a surprise, solve a riddle, or challenge a tiny local AI. No account needed.",
+    "Ask a tiny local AI, play Connect the Signal, and meet Gobi—the builder behind both. No account needed to explore.",
   openGraph: {
     title: "AskGobi · Curious? Apparently you are.",
-    description: "You found AskGobi. Stay for a little surprise.",
+    description: "Ask my tiny AI. Or take a little brain break. Built by Gobi.",
     url: "https://askgobi.net",
     siteName: "AskGobi",
     type: "website",
@@ -24,7 +24,7 @@ export const metadata = {
   twitter: {
     card: "summary_large_image",
     title: "AskGobi · Curious? Apparently you are.",
-    description: "You found AskGobi. Stay for a little surprise.",
+    description: "Ask my tiny AI. Or take a little brain break. Built by Gobi.",
     images: ["/og.png"],
   },
 };

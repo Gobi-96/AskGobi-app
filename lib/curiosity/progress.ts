@@ -3,6 +3,7 @@ export type Progress = {
   version: 1;
   completedCards: string[];
   challengeCompleted: boolean;
+  puzzleCompleted?: boolean;
 };
 export const emptyProgress = (): Progress => ({
   version: 1,
@@ -27,6 +28,7 @@ export function readProgress(storage: StorageLike | undefined): Progress {
         ),
       ),
       challengeCompleted: value.challengeCompleted === true,
+      ...(value.puzzleCompleted === true ? { puzzleCompleted: true } : {}),
     };
   } catch {
     return emptyProgress();
@@ -53,7 +55,10 @@ export function milestones(progress: Progress) {
   return [
     {
       name: "First Spark",
-      earned: progress.completedCards.length > 0 || progress.challengeCompleted,
+      earned:
+        progress.completedCards.length > 0 ||
+        progress.challengeCompleted ||
+        progress.puzzleCompleted === true,
       description: "Complete any activity.",
     },
     {
