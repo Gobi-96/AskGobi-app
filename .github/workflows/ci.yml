@@ -31,6 +31,10 @@ jobs:
         run: npm ci
       - name: Run regression tests
         run: npm test
+      - name: Check migrations in isolated PostgreSQL
+        run: |
+          npm install --prefix "$RUNNER_TEMP/signal-db" --ignore-scripts --no-audit --no-fund @electric-sql/pglite@0.3.14
+          PGLITE_MODULE="$RUNNER_TEMP/signal-db/node_modules/@electric-sql/pglite/dist/index.js" node scripts/test-signal-db.mjs
       - name: Check TypeScript
         run: npm run typecheck
       - name: Build production application
