@@ -455,7 +455,7 @@ export default function Playground({
             <p>
               Publishing a daily score is optional. It creates a private,
               HttpOnly browser cookie; the server stores only its hash. Public
-              entries show initials with a discriminator and scores, never that
+              entries show your initials or nickname and scores, never that
               identifier. No email or chat history is attached. While the cookie
               remains, use “Remove my leaderboard data” in the leaderboard.
               Clearing browser data loses access; identity does not sync across

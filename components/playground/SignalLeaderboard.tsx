@@ -1,4 +1,5 @@
 "use client";
+import { playerName } from "@/lib/puzzle/playerName";
 import { accountHeaders } from "@/lib/accountClient";
 import { AUTH_CHANGED_EVENT } from "@/lib/supabaseAuth";
 import { useEffect, useState } from "react";
@@ -140,7 +141,7 @@ export default function SignalLeaderboard({
                 <thead>
                   <tr>
                     <th>Rank</th>
-                    <th>Initials</th>
+                    <th>Name</th>
                     <th>{period === "day" ? "Moves" : "Points"}</th>
                   </tr>
                 </thead>
@@ -148,7 +149,7 @@ export default function SignalLeaderboard({
                   {entries.map((entry) => (
                     <tr key={entry.alias}>
                       <td>{entry.rank}</td>
-                      <td>{entry.alias}</td>
+                      <td>{playerName(entry.alias)}</td>
                       <td>{period === "day" ? entry.moves : entry.points}</td>
                     </tr>
                   ))}
@@ -174,7 +175,7 @@ export default function SignalLeaderboard({
             {confirmDelete && (
               <>
                 <p>
-                  This removes your public initials and all saved leaderboard
+                  This removes your public nickname and all saved leaderboard
                   scores. Your local practice progress stays.
                 </p>
                 <button
