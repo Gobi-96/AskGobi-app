@@ -8,13 +8,19 @@ service manager, tunnel origin, model configuration, and restart commands are no
 documented in the original repo. Do not guess those values or replace its hosting.
 Production has not been changed.
 
-**Security gate:** the inherited lockfile audit reports 11 production dependency
-findings: 1 critical, 8 high, 2 moderate. Next.js is pinned to 14.2.5.
-The registry proposes 14.2.35 as an in-line update, but its newer advisories also
-affect 14.x; an in-line patch alone does not clear the release gate. Review and
-upgrade to a supported patched Next.js line, update affected dependencies, and
-repeat the full test/build/browser checks before exposing this release publicly.
-No major framework migration was silently included in the playground change.
+**Security gate:** local validation on 2026-10-07 upgraded Next.js to 15.5.27,
+Tailwind CSS to 4.3.3 and refreshed the locked dependencies. Next.js's PostCSS
+dependency is overridden to the patched 8.5.29 range. `npm audit` reports zero
+known findings for the full installed dependency tree. Rerun the audit with
+`npm ci` on the deployment host; a clean audit is not proof of application security.
+The homepage awaits Next.js 15 search parameters and uses the Tailwind 4 PostCSS
+plugin. Tailwind 4 requires Safari 16.4+, Chrome 111+ or Firefox 128+.
+Local Node 22.22.2 passed tests, TypeScript and production build; CI uses Node 24.
+Live authentication/history and the Test Supabase leaderboard checks passed,
+including browser publication/removal, concurrent retries, ties and all ranking
+periods. Test Data API was enabled with owner confirmation. Production runs on
+a separate Mac through Cloudflare; its deployment and host smoke checks remain
+pending. Local test credentials and model runners are excluded from this commit.
 
 **Search gate:** the existing search Worker returned HTTP 200 with an empty
 `results` array during local verification. The app discloses unavailable sources,

@@ -1,6 +1,11 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Preserve Tailwind 3 default borders and form typography. */
+@layer base {
+  *, ::before, ::after { border-color: var(--color-gray-200, currentColor); }
+  button, input, select, textarea { font: inherit; }
+}
 
 @keyframes fadeInPoint {
   from { opacity: 0; transform: translateY(4px); }
