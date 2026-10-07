@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, Sparkles, Moon, Sun } from "lucide-react";
-import { useTheme } from "next-themes";
+import { ArrowUpRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Activity from "./Activity";
+import HomeAsk, { type HomeSuggestion } from "./HomeAsk";
 import LazyChallenge from "./LazyChallenge";
 import SignalGame, { type SignalFlags } from "./SignalGame";
 import {
@@ -24,10 +24,13 @@ import {
   type Progress,
 } from "@/lib/curiosity/progress";
 import { activityVisit } from "@/lib/curiosity/visit";
-import { readQuizHistory, writeQuizHistory } from "@/lib/curiosity/opening";
+import { nextOpeningQuiz, readQuizHistory, writeQuizHistory } from "@/lib/curiosity/opening";
 import { track } from "@/lib/curiosity/telemetry";
 import { shareLink } from "@/lib/curiosity/share";
 import "./playground.css";
+import ChatHeader from "@/components/ChatHeader";
+import SaveDiscovery from "@/components/SaveDiscovery";
+import "@/app/chat/chat.css";
 
 type Entry = {
   card: CuriosityCard | null;
@@ -44,12 +47,15 @@ export default function Playground({
   puzzleId?: string;
   signalFlags: SignalFlags;
 }) {
-  const { resolvedTheme, setTheme } = useTheme();
+  const [aiSuggestion, setAiSuggestion] = useState<HomeSuggestion>();
+  const directActivity = !!entry.card || entry.challenge || !!puzzleId;
   const [active, setActive] = useState(entry.card);
   const [challenge, setChallenge] = useState(entry.challenge);
-  const [showPuzzle, setShowPuzzle] = useState(!entry.card && !entry.challenge);
+  const [showPuzzle, setShowPuzzle] = useState(!!puzzleId && !entry.card && !entry.challenge);
   const [introductory, setIntroductory] = useState(entry.introductory);
   const [progress, setProgress] = useState<Progress>(emptyProgress);
+  const [selectedPuzzle, setSelectedPuzzle] = useState(puzzleId);
+  const [completed, setCompleted] = useState(false);
   const [view, setView] = useState(0);
   const [notice, setNotice] = useState("");
   const [storageAvailable, setStorageAvailable] = useState(true);
@@ -78,6 +84,7 @@ export default function Playground({
     }
   }
   function surprise() {
+    setCompleted(false);
     setShowPuzzle(false);
     const next = nextCard(seen.current);
     seen.current = next.seen;
@@ -91,11 +98,6 @@ export default function Playground({
     setView((v) => v + 1);
   }
   useEffect(() => {
-    const hash = new URLSearchParams(window.location.hash.slice(1));
-    if (hash.has("access_token") || hash.has("error_description")) {
-      window.location.replace(`/chat${window.location.hash}`);
-      return;
-    }
     if (initialized.current) return;
     initialized.current = true;
     try {
@@ -125,6 +127,11 @@ export default function Playground({
       );
     }
     if (!entry.challenge && entry.card) rememberCard(entry.card);
+    if (!entry.card && !entry.challenge && !puzzleId) {
+      const opening = nextOpeningQuiz(quizzesSeen.current);
+      setActive(opening.card);
+      rememberCard(opening.card);
+    }
     setLoaded(true);
   }, [entry]);
   useEffect(() => {
@@ -167,44 +174,33 @@ export default function Playground({
       ),
     );
   }
+  function startDaily() {
+    track("daily_continue");
+    setSelectedPuzzle("d1-" + new Date().toISOString().slice(0, 10));
+    setShowPuzzle(true); setChallenge(false); setView(v => v + 1);
+  }
   const badges = milestones(progress);
   const hasDiscoveries = badges.some((badge) => badge.earned);
 
   return (
-    <div className="playground">
-      <a className="pg-skip" href="#play">
-        Skip to the activity
+    <div className={`playground pg-ai-journey${directActivity ? " pg-direct-entry" : ""}`}>
+      <a className="pg-skip" href={directActivity ? "#play" : "#ask"}>
+        Skip to the main experience
       </a>
-      <header className="pg-header pg-container">
-        <Link href="/" className="pg-logo" aria-label="AskGobi home">
-          ask<span>gobi</span>
-          <i />
-        </Link>
-        <nav aria-label="Main navigation">
-          <Link href="/chat" prefetch={false} className="pg-chat-link">
-            <Sparkles size={17} aria-hidden="true" /> Ask anything
-            <ArrowUpRight size={15} aria-hidden="true" />
-          </Link>
-          <button
-            className="pg-icon"
-            aria-label="Toggle color theme"
-            onClick={() =>
-              setTheme(resolvedTheme === "dark" ? "light" : "dark")
-            }
-          >
-            <Sun size={18} className="pg-sun" />
-            <Moon size={18} className="pg-moon" />
-          </button>
-        </nav>
-      </header>
+      <ChatHeader playground />
       <main className="pg-container pg-layout">
         <section className="pg-opening" aria-labelledby="welcome-heading">
           <div className="pg-hero">
             <h1 id="welcome-heading">
-              Curious?<span>Apparently you are.</span>
+              Curious?<span>You’re in the right place.</span>
             </h1>
-            <p>Ask my tiny AI. Or take a little brain break.</p>
+            <p>Saw AskGobi on a car? Hi, I’m Gobi. Ask my AI a question, or try a little brain challenge.</p>
+            <p className="pg-safety">Driving? Come back when safely parked.</p>
           </div>
+          <HomeAsk suggestion={aiSuggestion} />
+        </section>
+        <section className="pg-activities" aria-label="A quick curiosity">
+          <div className="pg-section-intro"><span className="pg-eyebrow">TAKE A LITTLE DETOUR</span><h2>{showPuzzle ? "Connect the Signal" : challenge ? "Challenge my AI" : "A 10-second curiosity"}</h2><p>{showPuzzle ? "Turn the tiles. Find the connection." : challenge ? "Bring a question. See how my AI handles it." : "One tap. Something to think about."}</p></div>
           <section
             ref={play}
             id="play"
@@ -220,7 +216,8 @@ export default function Playground({
               />
             ) : showPuzzle ? (
               <SignalGame
-                initialId={puzzleId}
+                key={selectedPuzzle || "practice"}
+                initialId={selectedPuzzle}
                 flags={signalFlags}
                 onSurprises={surprise}
                 onComplete={puzzleComplete}
@@ -231,16 +228,18 @@ export default function Playground({
                 card={active}
                 introductory={introductory}
                 onComplete={() => {
+                  setCompleted(true);
+                  track("opening_answer");
                   if (visit.current.complete())
                     setProgress((previous) =>
                       completeCard(previous, active.id),
                     );
                 }}
+                onDaily={() => startDaily()}
                 onNext={surprise}
                 onShare={() => void shareCard()}
                 onAsk={() => {
-                  window.location.href =
-                    "/chat?card=" + encodeURIComponent(active.id);
+                  setAiSuggestion({ text: "Why is that? Tell me more about this discovery.", cardId: active.id, nonce: Date.now() });
                 }}
               />
             ) : (
@@ -250,21 +249,7 @@ export default function Playground({
               </div>
             )}
           </section>
-          {!showPuzzle && (
-            <button
-              className="pg-small-link"
-              onClick={() => {
-                setChallenge(false);
-                setShowPuzzle(true);
-                setView((v) => v + 1);
-              }}
-            >
-              Back to Connect the Signal
-            </button>
-          )}
-          <p className="pg-safety">
-            Found this on the road? Explore when safely parked.
-          </p>
+          {completed && active && !showPuzzle && <SaveDiscovery cardId={active.id} />}
           {hasDiscoveries && (
             <details className="pg-disclosure pg-discoveries">
               <summary>Your discoveries</summary>
@@ -321,15 +306,21 @@ export default function Playground({
         </section>
 
         <div className="pg-builder-column">
-          <section className="pg-builder" aria-labelledby="meet-gobi">
+          <aside className="pg-daily-panel" aria-label="Your next little detour">
+            <span className="pg-eyebrow">ONE LITTLE REASON TO RETURN</span>
+            <h2>Today’s signal</h2>
+            <p>Turn the tiles. Connect the signal. A new board every day.</p>
+            <button className="pg-button pg-primary" onClick={startDaily}>Try today’s signal <ArrowUpRight size={16} /></button>
+            <Link href="/curiosity" className="pg-small-link">Saved play &amp; chats <ArrowUpRight size={14} /></Link>
+          </aside>
+          <section id="maker" className="pg-builder" aria-labelledby="meet-gobi">
             <span className="pg-eyebrow">THE PERSON BEHIND THE PLAY</span>
             <h2 id="meet-gobi" tabIndex={-1}>
               Hi, I’m Gobi. I built this.
             </h2>
             <p>
-              I build web apps and AI tools. For AskGobi, I focused on a puzzle
-              you can play instantly, checked results, and useful failure
-              states.
+              I’m Gobishankar Rathinam. I build web apps and AI tools, and I made
+              this little corner of the internet for people who follow their curiosity.
             </p>
             <p>
               I put “Curious? AskGobi.net” on my car to give strangers a reason
@@ -440,37 +431,13 @@ export default function Playground({
                 </a>
               </div>
             </details>
-            <div className="pg-exploration">
-              <Link className="pg-small-link" href="/chat">
-                Chat with the AI <ArrowUpRight size={16} />
-              </Link>
-              <a
-                className="pg-small-link"
-                href="/?challenge=1"
-                onClick={startChallenge}
-              >
-                Challenge the AI <ArrowUpRight size={16} />
-              </a>
-            </div>
+
           </section>
 
-          <section className="pg-contact" aria-labelledby="contact-heading">
-            <span className="pg-eyebrow">LET’S MAKE SOMETHING USEFUL</span>
-            <h2 id="contact-heading">Building a team—or something useful?</h2>
-            <p>
-              Interested in how I approach web apps and AI tools? Let’s talk
-              about a role, a collaboration, or an idea.
-            </p>
-            <a
-              className="pg-button pg-primary"
-              href="https://www.linkedin.com/in/gobishankar-rathinam"
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => track("contact_intent")}
-            >
-              Talk to Gobi on LinkedIn <ArrowUpRight size={17} />
-            </a>
-          </section>
+          <div className="pg-maker-links">
+            <a className="pg-small-link" href="https://www.linkedin.com/in/gobishankar-rathinam" target="_blank" rel="noopener noreferrer" onClick={() => track("contact_intent")}>Say hello on LinkedIn <ArrowUpRight size={15} /></a>
+            <span>Built by Gobi. Thanks for following your curiosity.</span>
+          </div>
         </div>
       </main>
       <footer className="pg-container pg-footer">
@@ -504,7 +471,7 @@ export default function Playground({
             </p>
           </div>
         </details>
-        <span>© 2025 AskGobi · Stay curious.</span>
+        <span>© {new Date().getFullYear()} AskGobi · Stay curious.</span>
       </footer>
     </div>
   );

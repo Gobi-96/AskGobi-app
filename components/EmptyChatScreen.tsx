@@ -18,12 +18,12 @@ export default function EmptyChatScreen({ askExample, children }: {
       <div className="chat-intro">
         <span className="chat-eyebrow">A LITTLE DETOUR FOR YOUR BRAIN</span>
         <h1>What got you <span>curious?</span></h1>
-        <p>Small AI. Short answers. Room for big questions.</p>
+        <p>Everyday mysteries, simple explanations, and interesting what-ifs.</p>
       </div>
       {children}
       <div className="chat-starters" aria-label="Conversation starters">
         {starters.map(({ title, prompt, icon: Icon }) => (
-          <button type="button" className="chat-starter" key={title} onClick={() => askExample(prompt)}>
+          <button type="button" className="chat-starter" key={title} onClick={() => title === "Meet the maker" ? window.location.assign("/#maker") : askExample(prompt)}>
             <span className="chat-starter-top"><Icon size={19} aria-hidden="true" /><ArrowUpRight size={16} aria-hidden="true" /></span>
             <strong>{title}</strong><span>{prompt}</span>
           </button>

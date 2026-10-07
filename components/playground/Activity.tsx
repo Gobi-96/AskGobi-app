@@ -15,6 +15,7 @@ export default function Activity({
   onNext,
   onShare,
   onAsk,
+  onDaily,
   introductory = false,
 }: {
   card: CuriosityCard;
@@ -22,6 +23,7 @@ export default function Activity({
   onNext: () => void;
   onShare: () => void;
   onAsk: () => void;
+  onDaily: () => void;
   introductory?: boolean;
 }) {
   const [revealed, setRevealed] = useState(false);
@@ -103,11 +105,12 @@ export default function Activity({
       )}
       {revealed && (
         <div className="pg-activity-actions">
-          <button className="pg-button pg-primary" onClick={onNext}>
-            <RotateCcw size={16} /> Surprise me
+          <button className="pg-button pg-primary" onClick={onDaily}>
+            <ArrowRight size={16} /> Try today’s signal
           </button>
+          <button className="pg-small-link" onClick={onNext}>Surprise me again</button>
           <button className="pg-small-link" onClick={onAsk}>
-            Ask the AI why <ArrowUpRight size={15} />
+            Why is that? Ask Gobi <ArrowUpRight size={15} />
           </button>
           <button className="pg-small-link" onClick={onShare}>
             <Share2 size={15} /> Share

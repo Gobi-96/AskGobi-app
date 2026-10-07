@@ -3,8 +3,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { consumeAnswer } from "@/lib/ndjson";
 import {
   AUTH_CHANGED_EVENT,
+  isAuthStorageEvent,
   fetchSupabaseUser,
   getStoredToken,
+  getSessionToken,
   hasSupabaseConfig,
 } from "@/lib/supabaseAuth";
 import {
@@ -67,11 +69,13 @@ function groupRows(rows: MessageRow[]): Message[] {
   return grouped;
 }
 
-export function useAskGobi() {
+export function useAskGobi(options: { cardId?: string | null } = {}) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [thinking, setThinking] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [thinkingLabel, setThinkingLabel] = useState("Thinking…");
+  const requestAbort = useRef<AbortController | null>(null);
+  const asking = useRef(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   useEffect(() => () => abortController?.abort(), [abortController]);
   const [conversations, setConversations] = useState<ConversationRow[]>([]);
@@ -81,6 +85,8 @@ export function useAskGobi() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [isAuthed, setIsAuthed] = useState(false);
   const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [historyReady, setHistoryReady] = useState(false);
 
   const activeConversationIdRef = useRef<string | null>(null);
   const selectedProjectIdRef = useRef<string | null>(null);
@@ -91,12 +97,15 @@ export function useAskGobi() {
     selectedProjectIdRef.current = selectedProjectId;
   }, [selectedProjectId]);
 
+  const historyGeneration=useRef(0);
   const loadHistory = useCallback(async () => {
+    const generation=++historyGeneration.current;
     if (!hasSupabaseConfig()) return;
-    const token = getStoredToken();
+    const token = await getSessionToken();
     if (!token) {
       setIsAuthed(false);
       setCurrentUserEmail("");
+      setCurrentUserId(null);
       setProjects([]);
       setConversations([]);
       setActiveConversationId(null);
@@ -105,9 +114,11 @@ export function useAskGobi() {
     }
 
     const user = await fetchSupabaseUser(token);
+    if (generation!==historyGeneration.current || token!==getStoredToken()) return;
     if (!user) {
       setIsAuthed(false);
       setCurrentUserEmail("");
+      setCurrentUserId(null);
       setProjects([]);
       setConversations([]);
       setActiveConversationId(null);
@@ -117,11 +128,14 @@ export function useAskGobi() {
 
     setIsAuthed(true);
     setCurrentUserEmail(user.email || "");
+    setCurrentUserId(user.id);
     setHistoryLoading(true);
     try {
       const projs = await listProjects(token);
+      if(generation!==historyGeneration.current || token!==getStoredToken())return;
       setProjects(projs);
       const convs = await listConversations(token, 30);
+      if(generation!==historyGeneration.current || token!==getStoredToken())return;
       setConversations(convs);
       // Always land on a fresh new-chat view on app load.
       activeConversationIdRef.current = null;
@@ -134,23 +148,29 @@ export function useAskGobi() {
   }, []);
 
   useEffect(() => {
-    void loadHistory();
+    void loadHistory().finally(() => setHistoryReady(true));
     const onAuthChanged = () => {
+      requestAbort.current?.abort();
+      setMessages([]);
       void loadHistory();
     };
     window.addEventListener(AUTH_CHANGED_EVENT, onAuthChanged);
+    const onStorage = (event: StorageEvent) => { if (isAuthStorageEvent(event)) onAuthChanged(); };
+    window.addEventListener("storage", onStorage);
     return () => {
       window.removeEventListener(AUTH_CHANGED_EVENT, onAuthChanged);
+      window.removeEventListener("storage", onStorage);
     };
   }, [loadHistory]);
 
   async function openConversation(conversationId: string) {
     if (thinking) return;
-    const token = getStoredToken();
+    const token = await getSessionToken();
     if (!token) return;
     setHistoryLoading(true);
     try {
       const rows = await listMessages(token, conversationId, 300);
+      if(token!==getStoredToken())return;
       const current = conversations.find((c) => c.id === conversationId);
       if (current) {
         setSelectedProjectId(current.project_id || null);
@@ -178,9 +198,10 @@ export function useAskGobi() {
     answer: string;
     replaceLast: boolean;
     preserveLastHistory: boolean;
+    token: string | null;
   }) {
-    const token = getStoredToken();
-    if (!token) return;
+    const token = params.token;
+    if (!token || token !== getStoredToken()) return;
 
     let conversationId = activeConversationIdRef.current;
     if (!conversationId) {
@@ -189,13 +210,15 @@ export function useAskGobi() {
         toTitleFromPrompt(params.query),
         selectedProjectIdRef.current
       );
-      if (!created) return;
+      if (token !== getStoredToken()) return;
+      if (!created) throw new Error("Could not save conversation");
       conversationId = created.id;
       activeConversationIdRef.current = conversationId;
       setActiveConversationId(conversationId);
       setConversations((prev) => [created, ...prev.filter((c) => c.id !== created.id)]);
     } else {
       await touchConversation(token, conversationId);
+      if(token !== getStoredToken())return;
       setConversations((prev) => {
         const updated = [...prev];
         const idx = updated.findIndex((c) => c.id === conversationId);
@@ -210,14 +233,14 @@ export function useAskGobi() {
     }
 
     if (params.replaceLast && params.preserveLastHistory) {
-      await insertMessages(token, conversationId, [{ role: "assistant", content: params.answer }]);
+      if (!await insertMessages(token, conversationId, [{ role: "assistant", content: params.answer }])) throw new Error("Could not save answer");
       return;
     }
 
-    await insertMessages(token, conversationId, [
+    if (!await insertMessages(token, conversationId, [
       { role: "user", content: params.query },
       { role: "assistant", content: params.answer },
-    ]);
+    ])) throw new Error("Could not save answer");
   }
 
   async function runAsk(
@@ -225,7 +248,11 @@ export function useAskGobi() {
     onlineMode: boolean = false,
     opts: { replaceLast?: boolean; preserveLastHistory?: boolean } = {}
   ) {
-    if (!query.trim() || thinking) return;
+    if (!query.trim() || thinking || asking.current) return;
+    asking.current = true;
+    const requestEpoch = historyGeneration.current;
+    const requestToken = await getSessionToken().catch(() => null);
+    if(requestEpoch !== historyGeneration.current){ asking.current = false; return; }
 
     const replaceLast = Boolean(opts.replaceLast);
     const preserveLastHistory = Boolean(opts.preserveLastHistory);
@@ -262,6 +289,7 @@ export function useAskGobi() {
     const controller = new AbortController();
     let phaseTimer: ReturnType<typeof setTimeout> | null = null;
     setAbortController(controller);
+    requestAbort.current=controller;
 
     try {
       setThinkingLabel("Thinking…");
@@ -277,7 +305,7 @@ export function useAskGobi() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
-        body: JSON.stringify({ query, context, onlineMode }),
+        body: JSON.stringify({ query, context, onlineMode, cardId: options.cardId !== undefined ? options.cardId : new URLSearchParams(window.location.search).get("card") }),
       });
 
       if (!res.ok) {
@@ -290,10 +318,12 @@ export function useAskGobi() {
       }
 
       const finalText = await consumeAnswer(res, (partial) => {
+        if(requestEpoch !== historyGeneration.current)return;
         if (phaseTimer) { clearTimeout(phaseTimer); phaseTimer = null; }
         setIsTyping(true);
         setMessages((prev) => prev.map((m, i) => i === prev.length - 1 ? { ...m, answer: partial } : m));
       });
+      if(requestEpoch !== historyGeneration.current)return;
       const finalCleaned = finalText;
 
       setMessages((prev) =>
@@ -311,12 +341,13 @@ export function useAskGobi() {
       );
 
       try {
-        await persistExchange({ query, answer: finalCleaned, replaceLast, preserveLastHistory });
+        await persistExchange({ query, answer: finalCleaned, replaceLast, preserveLastHistory, token: requestToken });
       } catch {
         setMessages((prev) => prev.map((m, i) => i === prev.length - 1
           ? { ...m, notice: "Your answer is here, but we couldn’t save it to your history." } : m));
       }
     } catch (err: any) {
+      if(requestEpoch !== historyGeneration.current)return;
       const msg =
         err?.name === "AbortError"
           ? "Stopped by user."
@@ -332,6 +363,7 @@ export function useAskGobi() {
       setIsTyping(false);
       setThinkingLabel("Thinking…");
       setAbortController(null);
+      asking.current = false;
     }
   }
 
@@ -381,7 +413,7 @@ export function useAskGobi() {
   }
 
   async function createProjectFolder(name: string): Promise<boolean> {
-    const token = getStoredToken();
+    const token = await getSessionToken();
     if (!token || !name.trim()) return false;
     const created = await createProject(token, name.trim());
     if (!created) return false;
@@ -392,7 +424,7 @@ export function useAskGobi() {
   }
 
   async function renameActiveConversation(title: string) {
-    const token = getStoredToken();
+    const token = await getSessionToken();
     const id = activeConversationIdRef.current;
     if (!token || !id || !title.trim()) return;
     const ok = await renameConversation(token, id, title.trim());
@@ -403,7 +435,7 @@ export function useAskGobi() {
   }
 
   async function renameConversationById(conversationId: string, title: string): Promise<boolean> {
-    const token = getStoredToken();
+    const token = await getSessionToken();
     if (!token || !conversationId || !title.trim()) return false;
     const ok = await renameConversation(token, conversationId, title.trim());
     if (!ok) return false;
@@ -414,7 +446,7 @@ export function useAskGobi() {
   }
 
   async function deleteConversationById(conversationId: string): Promise<boolean> {
-    const token = getStoredToken();
+    const token = await getSessionToken();
     if (!token || !conversationId) return false;
     const ok = await deleteConversation(token, conversationId);
     if (!ok) return false;
@@ -428,7 +460,7 @@ export function useAskGobi() {
   }
 
   async function renameProjectFolder(projectId: string, name: string): Promise<boolean> {
-    const token = getStoredToken();
+    const token = await getSessionToken();
     if (!token || !projectId || !name.trim()) return false;
     const ok = await renameProject(token, projectId, name.trim());
     if (!ok) return false;
@@ -437,7 +469,7 @@ export function useAskGobi() {
   }
 
   async function deleteProjectFolder(projectId: string): Promise<boolean> {
-    const token = getStoredToken();
+    const token = await getSessionToken();
     if (!token || !projectId) return false;
     const ok = await deleteProject(token, projectId);
     if (!ok) return false;
@@ -453,7 +485,7 @@ export function useAskGobi() {
   }
 
   async function moveActiveConversationToProject(projectId: string | null) {
-    const token = getStoredToken();
+    const token = await getSessionToken();
     const id = activeConversationIdRef.current;
     if (!token || !id) return;
     const ok = await setConversationProject(token, id, projectId);
@@ -484,6 +516,8 @@ export function useAskGobi() {
     historyLoading,
     isAuthed,
     currentUserEmail,
+    currentUserId,
+    historyReady,
     openConversation,
     startNewConversation,
     createProjectFolder,

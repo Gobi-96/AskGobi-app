@@ -1,10 +1,15 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Moon, Sun, X, Menu, ArrowUpRight } from "lucide-react";
+import { X, Menu, ArrowUpRight } from "lucide-react";
 import { useTheme } from "next-themes";
+import ThemeToggle from "./ThemeToggle";
 import {
   AUTH_OPEN_EVENT,
+  isAuthStorageEvent,
+  AUTH_CHANGED_EVENT,
+  getSessionToken,
+  authReturnPath,
   AUTH_SIGNOUT_EVENT,
   consumeTokenFromUrlHash,
   fetchSupabaseUser,
@@ -19,11 +24,13 @@ import {
 export default function ChatHeader({
   onMenuClick,
   sidebarExpanded = true,
+  playground = false,
 }: {
   onMenuClick?: () => void;
   sidebarExpanded?: boolean;
+  playground?: boolean;
 }) {
-  const { resolvedTheme: theme, setTheme } = useTheme();
+  const { resolvedTheme: theme } = useTheme();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -32,18 +39,28 @@ export default function ChatHeader({
   const [authMessage, setAuthMessage] = useState("");
   const [authError, setAuthError] = useState("");
   const [showMobileAccountMenu, setShowMobileAccountMenu] = useState(false);
+  const authDialogRef = useRef<HTMLDivElement | null>(null);
   const mobileAccountMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let ignore = false;
     async function load() {
       const fromHash = consumeTokenFromUrlHash();
-      const token = fromHash || getStoredToken();
-      if (!token) return;
+      if (fromHash) {
+        const destination = authReturnPath();
+        if (destination !== window.location.pathname + window.location.search) { window.location.replace(destination); return; }
+      }
+      const token = fromHash || await getSessionToken();
+      if (!token) { if (!ignore) setUser(null); return; }
       const current = await fetchSupabaseUser(token);
-      if (!ignore) setUser(current);
+      if (!ignore && token === getStoredToken()) setUser(current);
     }
     void load();
+    const timer = setInterval(() => void load(), 60_000);
+    const reload = () => void load();
+    window.addEventListener(AUTH_CHANGED_EVENT,reload);
+    const onStorage = (event: StorageEvent) => { if (isAuthStorageEvent(event)) reload(); };
+    window.addEventListener("storage",onStorage);
     const onOpenAuth = (event: Event) => {
       const custom = event as CustomEvent<{ mode?: "login" | "signup" }>;
       openAuth(custom.detail?.mode || "login");
@@ -55,6 +72,9 @@ export default function ChatHeader({
     window.addEventListener(AUTH_SIGNOUT_EVENT, onSignoutRequest as EventListener);
     return () => {
       ignore = true;
+      clearInterval(timer);
+      window.removeEventListener(AUTH_CHANGED_EVENT,reload);
+      window.removeEventListener("storage",onStorage);
       window.removeEventListener(AUTH_OPEN_EVENT, onOpenAuth as EventListener);
       window.removeEventListener(AUTH_SIGNOUT_EVENT, onSignoutRequest as EventListener);
     };
@@ -70,6 +90,22 @@ export default function ChatHeader({
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [showMobileAccountMenu]);
+
+  useEffect(() => {
+    if (!showAuthModal) return;
+    const previous=document.activeElement as HTMLElement | null;
+    const controls=()=>Array.from(authDialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]),input:not([disabled]),a[href]') || []);
+    controls()[0]?.focus();
+    const key=(e:KeyboardEvent)=>{
+      if(e.key==="Escape"){setShowAuthModal(false);return;}
+      if(e.key!=="Tab")return;
+      const items=controls(),first=items[0],last=items[items.length-1];
+      if(e.shiftKey && document.activeElement===first){e.preventDefault();last?.focus();}
+      else if(!e.shiftKey && document.activeElement===last){e.preventDefault();first?.focus();}
+    };
+    document.addEventListener("keydown",key);
+    return ()=>{document.removeEventListener("keydown",key);previous?.focus();};
+  },[showAuthModal]);
 
   async function onSignIn() {
     setLoadingAuth(true);
@@ -110,6 +146,7 @@ export default function ChatHeader({
   }
 
   function openAuth(mode: "login" | "signup") {
+    import("@/lib/curiosity/telemetry").then(({track}) => track("signin_intent"));
     setAuthMode(mode);
     setShowAuthModal(true);
     setAuthError("");
@@ -121,7 +158,7 @@ export default function ChatHeader({
     <>
       <header
         className={`chat-header fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-3 md:px-6 py-3 md:py-4 backdrop-blur-md
-          ${sidebarExpanded ? "md:left-[300px]" : "md:left-[64px]"}
+          ${playground ? "pg-shared-header" : sidebarExpanded ? "md:left-[300px]" : "md:left-[64px]"}
           ${theme === "light"
             ? "bg-white/80 border-b border-gray-200"
             : "bg-[#0d0d0d]/80 border-b border-gray-800 text-white"}`}
@@ -146,12 +183,13 @@ export default function ChatHeader({
           >
             ask<span>gobi</span><i />
           </Link>
-          <span className="chat-header-section">ASK ANYTHING</span>
+          {!playground && <span className="chat-header-section">ASK ANYTHING</span>}
         </div>
 
         <div className="flex items-center gap-3">
-          <Link href="/" className="chat-home-link">Playground <ArrowUpRight size={14} /></Link>
-          {hasSupabaseConfig() && (
+          {playground && <Link href="/chat" className="pg-nav-ask">Chat</Link>}
+          <Link href="/curiosity" className="pg-account-link">My curiosity <ArrowUpRight size={14} /></Link>
+          {hasSupabaseConfig() && (!playground || user) && (
             <>
               {user?.email ? (
                 <>
@@ -262,21 +300,12 @@ export default function ChatHeader({
             </>
           )}
 
-          <button
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            aria-label="Toggle color theme"
-            className={`p-2 rounded-full border transition
-              ${theme === "light"
-                ? "bg-gray-200 hover:bg-gray-300 border-gray-300 text-gray-800"
-                : "bg-gray-700 hover:bg-gray-600 border-gray-600 text-yellow-300"}`}
-          >
-            {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
+          <ThemeToggle />
         </div>
       </header>
 
       {showAuthModal && (
-        <div className="fixed inset-0 z-[80] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div ref={authDialogRef} role="dialog" aria-modal="true" aria-labelledby="auth-title" className="fixed inset-0 z-[80] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div
             className={`w-full max-w-md rounded-2xl border p-6 ${
               theme === "light"
@@ -286,7 +315,7 @@ export default function ChatHeader({
           >
             <div className="flex items-start justify-between gap-3 mb-4">
               <div>
-                <h2 className="text-3xl font-semibold text-center">
+                <h2 id="auth-title" className="text-3xl font-semibold text-center">
                   {authMode === "login" ? "Log in or sign up for free" : "Sign up for free"}
                 </h2>
                 <p
@@ -294,11 +323,12 @@ export default function ChatHeader({
                     theme === "light" ? "text-gray-600" : "text-gray-300"
                   }`}
                 >
-                  Save your history, get better responses, and continue from any device.
+                  Save discoveries, puzzle results, and chats across devices. Public scores are always optional.
                 </p>
               </div>
               <button
                 type="button"
+                aria-label="Close sign-in dialog"
                 onClick={() => setShowAuthModal(false)}
                 className={`rounded-full p-1 border ${
                   theme === "light" ? "border-gray-300" : "border-gray-600"

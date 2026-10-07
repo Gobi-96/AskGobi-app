@@ -39,7 +39,7 @@ export default function ChatMessages({ messages, thinking, isTyping, thinkingLab
             <div className="chat-user-message"><span className="sr-only">You: </span>{message.question}</div>
             {!hideAnswer && (
               <div className="chat-assistant-message">
-                <div className="chat-assistant-label"><span className="chat-avatar" aria-hidden="true">g.</span> AskGobi <span>tiny local AI</span></div>
+                <div className="chat-assistant-label"><span className="chat-avatar" aria-hidden="true">g.</span> AskGobi <span>AI assistant</span></div>
                 {message.answer && <div className="chat-answer">
                   <ReactMarkdown remarkPlugins={[remarkGfm]} skipHtml components={{
                     a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer">{children} ↗</a>,

@@ -44,3 +44,34 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* One aligned appearance control shared by chat and the playground. */
+.appearance-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  border: 1px solid #ffffff18;
+  border-radius: 14px;
+  color: #a9adb9;
+  background: #ffffff04;
+  cursor: pointer;
+}
+.light .appearance-control { border-color: #15192518; color: #565e70; background: #15192503; }
+.appearance-control:hover { color: #9eb7ff; border-color: #4c7aff80; }
+.light .appearance-control:hover { color: #254fbb; }
+.appearance-control:focus-visible { outline: 2px solid #4c7aff; outline-offset: 3px; }
+.chat-header .pg-account-link { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; min-height: 48px; }
+@media (max-width: 480px) {
+  .chat-header { gap: 6px; }
+  .chat-header > div { gap: 6px; }
+  .chat-header > div:first-child { gap: 4px; }
+  .chat-header .chat-brand { font-size: 22px; }
+  .chat-header .pg-account-link { font-size: 12px; }
+  .chat-header .pg-account-link svg { display: none; }
+  .chat-header button[aria-label="Open chats menu"] { width: 40px; flex-shrink: 0; }
+  .chat-header button[aria-label="Open login options"] { padding-inline: 10px; font-size: 12px; }
+}

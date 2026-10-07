@@ -3,12 +3,12 @@ import { ClientThemeProvider } from "@/components/ClientThemeProvider";
 
 export const metadata = {
   metadataBase: new URL("https://askgobi.net"),
-  title: "AskGobi · Curious? Apparently you are.",
+  title: "AskGobi · Curious? You’re in the right place.",
   description:
     "Ask a tiny local AI, play Connect the Signal, and meet Gobi—the builder behind both. No account needed to explore.",
   openGraph: {
-    title: "AskGobi · Curious? Apparently you are.",
-    description: "Ask my tiny AI. Or take a little brain break. Built by Gobi.",
+    title: "AskGobi · Curious? You’re in the right place.",
+    description: "A little surprise for your curiosity. Play, discover, and meet Gobi.",
     url: "https://askgobi.net",
     siteName: "AskGobi",
     type: "website",
@@ -17,14 +17,14 @@ export const metadata = {
         url: "/og.png",
         width: 1729,
         height: 910,
-        alt: "AskGobi — Curious? Apparently you are.",
+        alt: "AskGobi — Curious? You’re in the right place.",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "AskGobi · Curious? Apparently you are.",
-    description: "Ask my tiny AI. Or take a little brain break. Built by Gobi.",
+    title: "AskGobi · Curious? You’re in the right place.",
+    description: "A little surprise for your curiosity. Play, discover, and meet Gobi.",
     images: ["/og.png"],
   },
 };

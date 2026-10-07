@@ -1,4 +1,6 @@
 "use client";
+import { accountHeaders } from "@/lib/accountClient";
+import { AUTH_CHANGED_EVENT } from "@/lib/supabaseAuth";
 import { useEffect, useState } from "react";
 export type LeaderboardEntry = {
   alias: string;
@@ -19,6 +21,7 @@ export default function SignalLeaderboard({
   onRemoving: (value: boolean) => void;
   onRemoved: () => void;
 }) {
+  const [mine, setMine] = useState<number | null>(null);
   const [open, setOpen] = useState(false),
     [period, setPeriod] = useState("day"),
     [entries, setEntries] = useState<LeaderboardEntry[]>([]);
@@ -28,8 +31,14 @@ export default function SignalLeaderboard({
     [deleting, setDeleting] = useState(false);
   const [refresh, setRefresh] = useState(0);
   useEffect(() => {
+    const update = () => setRefresh((n) => n + 1);
+    window.addEventListener(AUTH_CHANGED_EVENT, update);
+    return () => window.removeEventListener(AUTH_CHANGED_EVENT, update);
+  }, []);
+  useEffect(() => {
     let alive = true;
-    void fetch("/api/puzzle/player")
+    void accountHeaders()
+      .then((headers) => fetch("/api/puzzle/player", { headers }))
       .then((r) => r.json())
       .then((d) => {
         if (alive) setIdentity(d.hasIdentity === true);
@@ -44,9 +53,14 @@ export default function SignalLeaderboard({
     const abort = new AbortController();
     setStatus("Loading real results…");
     setEntries([]);
-    void fetch("/api/puzzle/leaderboard?period=" + period, {
-      signal: abort.signal,
-    })
+    setMine(null);
+    void accountHeaders()
+      .then((headers) =>
+        fetch("/api/puzzle/leaderboard?period=" + period, {
+          signal: abort.signal,
+          headers,
+        }),
+      )
       .then(async (r) => {
         if (!r.ok) throw Error();
         return r.json();
@@ -54,6 +68,7 @@ export default function SignalLeaderboard({
       .then((d) => {
         if (!abort.signal.aborted) {
           setEntries(d.entries);
+          setMine(d.mine?.rank ?? null);
           setStatus(
             d.entries.length
               ? ""
@@ -106,10 +121,18 @@ export default function SignalLeaderboard({
                   ? "Daily best points, Monday–Sunday UTC. Up to 700 per week."
                   : "Daily best points since launch. Rewards participation as well as efficiency."}
             </p>
-            <p>
-              Daily points = 100 × shortest route ÷ your moves, rounded down.
-              Optimal solves earn 100.
-            </p>
+            {mine !== null && (
+              <p className="pg-reveal">
+                Your rank: <strong>{mine}</strong>
+              </p>
+            )}
+            <details>
+              <summary>How scoring works</summary>
+              <p>
+                Daily points = 100 × shortest route ÷ your moves, rounded down.
+                Optimal solves earn 100.
+              </p>
+            </details>
             {status && <p role="status">{status}</p>}
             {!!entries.length && (
               <table className="sg-rankings">
@@ -163,6 +186,7 @@ export default function SignalLeaderboard({
                     try {
                       const r = await fetch("/api/puzzle/player", {
                         method: "DELETE",
+                        headers: await accountHeaders(),
                       });
                       if (!r.ok) throw Error();
                       setIdentity(false);
