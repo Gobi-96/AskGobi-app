@@ -20,7 +20,7 @@ export const cards: readonly CuriosityCard[] = [
     kind: "riddle",
     title: "A world without water",
     prompt:
-      "I have cities but no houses, forests but no trees, and rivers but no water. What am I?",
+      "Fold me up and a whole city fits in your pocket. Unfold me and you still can’t step inside. What am I?",
     answer: "A map.",
     explanation:
       "A map represents those places without containing the physical things themselves.",
@@ -30,7 +30,7 @@ export const cards: readonly CuriosityCard[] = [
     kind: "riddle",
     title: "Leave a little behind",
     prompt:
-      "The more steps you take, the more of these you leave behind. What are they?",
+      "On a sandy beach, I record your walk without a battery. The next wave can erase me. What am I?",
     answer: "Footprints.",
     explanation: "Each step can leave a new impression, even as you move away.",
   },
@@ -48,7 +48,7 @@ export const cards: readonly CuriosityCard[] = [
     id: "riddle-towel",
     kind: "riddle",
     title: "A drying paradox",
-    prompt: "What gets wetter as it dries you?",
+    prompt: "After a shower, we trade places: you get dry while I get wet. What am I?",
     answer: "A towel.",
     explanation:
       "It dries your skin by absorbing the water, becoming wetter itself.",
@@ -57,7 +57,7 @@ export const cards: readonly CuriosityCard[] = [
     id: "riddle-hole",
     kind: "riddle",
     title: "Less is more",
-    prompt: "What gets bigger the more material you take away from it?",
+    prompt: "Keep digging and I grow, even though you keep taking things away. What am I?",
     answer: "A hole.",
     explanation:
       "Removing more of the surrounding material enlarges the empty space.",

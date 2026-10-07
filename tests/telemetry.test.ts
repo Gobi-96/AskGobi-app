@@ -35,7 +35,7 @@ test("telemetry sends only an aggregate name and never interrupts play on failur
 });
 
 test("additive SQL migration keeps both database allowlists aligned with the endpoint", () => {
-  const sql = readFileSync("supabase/curiosity_signal_events.sql", "utf8");
+  const sql = readFileSync("supabase/curiosity_journey_events.sql", "utf8");
   for (const event of eventNames) {
     assert.equal(sql.split("'" + event + "'").length - 1, 2, event);
   }

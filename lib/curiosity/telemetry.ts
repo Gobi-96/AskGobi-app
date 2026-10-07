@@ -1,4 +1,5 @@
 export const eventNames = [
+  "opening_answer", "daily_continue", "signin_intent", "progress_saved",
   "activity_start",
   "activity_complete",
   "challenge_start",
