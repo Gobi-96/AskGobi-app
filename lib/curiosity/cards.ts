@@ -111,7 +111,7 @@ export const cards: readonly CuriosityCard[] = [
     id: "quiz-race",
     kind: "quiz",
     title: "An unexpected overtake",
-    prompt: "You pass the runner in second place. What place are you in now?",
+    prompt: "You pass the runner in second place. What place are you in?",
     options: ["First", "Second", "Third"],
     answerIndex: 1,
     explanation:
@@ -122,7 +122,7 @@ export const cards: readonly CuriosityCard[] = [
     kind: "quiz",
     title: "Small factory, big question",
     prompt:
-      "Five identical machines make five parts in five minutes. How long do 100 machines take to make 100 parts at the same rate?",
+      "Five identical machines make five parts in five minutes. How long would 100 machines need to make 100 parts?",
     options: ["5 minutes", "20 minutes", "100 minutes"],
     answerIndex: 0,
     explanation:
@@ -133,7 +133,7 @@ export const cards: readonly CuriosityCard[] = [
     kind: "quiz",
     title: "A drawer in the dark",
     prompt:
-      "A drawer contains only black socks and white socks, many of each. How many must you take to guarantee a same-color pair?",
+      "A drawer has black and white socks. Without looking, how many must you pick to guarantee two of the same colour?",
     options: ["2", "3", "4"],
     answerIndex: 1,
     explanation:
@@ -154,7 +154,7 @@ export const cards: readonly CuriosityCard[] = [
     kind: "quiz",
     title: "The ten-cent trap",
     prompt:
-      "A bat and a ball cost $1.10 together. The bat costs $1 more than the ball. What does the ball cost?",
+      "A bat and ball cost $1.10 together. The bat costs $1 more than the ball. How much is the ball?",
     options: ["5 cents", "10 cents", "15 cents"],
     answerIndex: 0,
     explanation:
@@ -165,7 +165,7 @@ export const cards: readonly CuriosityCard[] = [
     kind: "quiz",
     title: "One day makes a difference",
     prompt:
-      "A patch of lilies doubles in area every day and covers a pond on day 48. On which day was the pond half covered?",
+      "Water lilies double in area daily, covering a pond on day 48. On which day was it half covered?",
     options: ["Day 24", "Day 47", "Day 46"],
     answerIndex: 1,
     explanation:
@@ -176,7 +176,7 @@ export const cards: readonly CuriosityCard[] = [
     kind: "quiz",
     title: "Heavy thinking",
     prompt:
-      "Which has more mass: one kilogram of feathers or one kilogram of steel?",
+      "Which has more mass: a kilogram of feathers or a kilogram of steel?",
     options: ["Feathers", "Steel", "They have the same mass"],
     answerIndex: 2,
     explanation:
@@ -187,7 +187,7 @@ export const cards: readonly CuriosityCard[] = [
     kind: "quiz",
     title: "Is the coin due?",
     prompt:
-      "A fair coin lands heads five times in a row. What is the chance of heads on the next independent toss?",
+      "A fair coin lands heads five times in a row. Each toss is independent. What’s the chance of heads next?",
     options: ["Less than 50%", "Exactly 50%", "More than 50%"],
     answerIndex: 1,
     explanation:
@@ -198,7 +198,7 @@ export const cards: readonly CuriosityCard[] = [
     kind: "quiz",
     title: "Cutting corners",
     prompt:
-      "Cut one corner off a square with a straight cut crossing the two adjacent sides, away from the other corners. How many corners remain?",
+      "Slice off one corner of a square with a straight cut, leaving the other corners untouched. How many corners now?",
     options: ["3", "4", "5"],
     answerIndex: 2,
     explanation:
@@ -209,7 +209,7 @@ export const cards: readonly CuriosityCard[] = [
     kind: "quiz",
     title: "A very small party",
     prompt:
-      "Four people each shake hands with every other person exactly once. How many handshakes happen?",
+      "Four people each shake everyone else’s hand once. How many handshakes happen?",
     options: ["4", "6", "12"],
     answerIndex: 1,
     explanation:
@@ -343,8 +343,15 @@ export const cards: readonly CuriosityCard[] = [
 
 export const getCard = (id: string | null | undefined) =>
   cards.find((card) => card.id === id);
-export function dailyCard(date = new Date()): CuriosityCard {
-  return cards[Math.floor(date.getTime() / 86_400_000) % cards.length];
+// Shared cards resolve on the server. Ordinary openings are chosen once on the
+// device, where recent-quiz history is available, before showing answer controls.
+export function entryActivity(params: { card?: string; challenge?: string }) {
+  const requested = getCard(params.card);
+  return {
+    card: requested ?? null,
+    challenge: !requested && params.challenge === "1",
+    introductory: !requested,
+  };
 }
 export function nextCard(seen: readonly string[], random = Math.random) {
   const remaining = cards.filter((card) => !seen.includes(card.id));

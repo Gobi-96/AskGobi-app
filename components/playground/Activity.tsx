@@ -15,12 +15,14 @@ export default function Activity({
   onNext,
   onShare,
   onAsk,
+  introductory = false,
 }: {
   card: CuriosityCard;
   onComplete: () => void;
   onNext: () => void;
   onShare: () => void;
   onAsk: () => void;
+  introductory?: boolean;
 }) {
   const [revealed, setRevealed] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
@@ -32,22 +34,22 @@ export default function Activity({
   }
   return (
     <article className="pg-activity">
-      <div className="pg-eyebrow">
-        {card.kind === "fact"
-          ? "A CURIOUS FACT"
-          : card.kind === "quiz"
-            ? "A QUICK BRAIN TEASER"
-            : "A LITTLE RIDDLE"}{" "}
-        <span>· NO AI REQUIRED</span>
-      </div>
-      <h2>{card.title}</h2>
-      <p className="pg-prompt">{card.prompt}</p>
+      {!introductory && (
+        <div className="pg-eyebrow">
+          {card.kind === "fact"
+            ? "A CURIOUS FACT"
+            : card.kind === "quiz"
+              ? "A QUICK BRAIN TEASER"
+              : "A LITTLE RIDDLE"}
+        </div>
+      )}
+      <h2 className="pg-question">{card.prompt}</h2>
       {card.kind === "quiz" && (
-        <div className="pg-options" aria-label="Answer choices">
+        <div className="pg-options" role="group" aria-label="Answer choices">
           {card.options.map((option, i) => (
             <button
               key={option}
-              disabled={revealed}
+              aria-disabled={revealed}
               className={
                 revealed && i === card.answerIndex
                   ? "correct"
@@ -57,7 +59,6 @@ export default function Activity({
               }
               onClick={() => reveal(i)}
             >
-              <span>{String.fromCharCode(65 + i)}</span>
               {option}
               {revealed && i === card.answerIndex && (
                 <Check size={18} aria-label="Correct answer" />
@@ -76,9 +77,7 @@ export default function Activity({
           {card.kind === "riddle" && <strong>{card.answer}</strong>}
           {card.kind === "quiz" && (
             <strong>
-              {selected === card.answerIndex
-                ? "You got it."
-                : "A good little twist."}{" "}
+              {selected === card.answerIndex ? "You got it." : "A sneaky one."}{" "}
               The answer: {card.options[card.answerIndex]}.
             </strong>
           )}
@@ -95,22 +94,26 @@ export default function Activity({
           Got it. That’s a good one. <Check size={17} />
         </button>
       )}
-      {revealed && (
-        <p className="pg-completed">
-          <Check size={15} /> Activity complete. A little more curious.
-        </p>
+      {!revealed && (
+        <div className="pg-skip-activity">
+          <button className="pg-small-link" onClick={onNext}>
+            Skip this one <ArrowRight size={15} />
+          </button>
+        </div>
       )}
-      <div className="pg-activity-actions">
-        <button className="pg-button pg-secondary" onClick={onNext}>
-          <RotateCcw size={16} /> Another surprise
-        </button>
-        <button className="pg-small-link" onClick={onAsk}>
-          Ask the AI about this <ArrowUpRight size={15} />
-        </button>
-        <button className="pg-small-link" onClick={onShare}>
-          <Share2 size={15} /> Share
-        </button>
-      </div>
+      {revealed && (
+        <div className="pg-activity-actions">
+          <button className="pg-button pg-primary" onClick={onNext}>
+            <RotateCcw size={16} /> Surprise me
+          </button>
+          <button className="pg-small-link" onClick={onAsk}>
+            Ask the AI why <ArrowUpRight size={15} />
+          </button>
+          <button className="pg-small-link" onClick={onShare}>
+            <Share2 size={15} /> Share
+          </button>
+        </div>
+      )}
     </article>
   );
 }
