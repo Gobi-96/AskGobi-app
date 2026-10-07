@@ -145,9 +145,11 @@ test("server reconstructs moves, computes points and rejects invalid or post-com
     [...moves, 0, 0, 0, 0],
   ])
     assert.throws(() => verifyScore(board, invalid));
-  for (const name of ["A", "ABCD", "abc", "A1", "<B", "ASS", "KKK", "FCK"])
+  for (const name of ["", "ABCDEF", "abc", "A1", "<B", "ASS", "KKK", "FCK"])
     assert.throws(() => validateInitials(name));
   assert.equal(validateInitials("GS"), "GS");
+  assert.equal(validateInitials("A"), "A");
+  assert.equal(validateInitials("GOBIS"), "GOBIS");
 });
 test("ranked creation crossing midnight retains its original day and issue time", async () => {
   let clock = now;

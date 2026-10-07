@@ -94,7 +94,7 @@ returns jsonb language plpgsql security definer set search_path = '' as $$
 declare previous public.signal_receipts%rowtype; minimum integer; computed integer;
   result jsonb; public_alias text; best public.signal_scores%rowtype;
 begin
-  if p_initials is null or p_initials !~ '^[A-Z]{2,3}$' or p_initials in ('ASS','KKK','FUK','FCK','WTF','SEX') or
+  if p_initials is null or p_initials !~ '^[A-Z]{1,5}$' or p_initials in ('ASS','KKK','FUK','FCK','WTF','SEX') or
      p_moves is null or p_moves not between 1 and 256 or p_expires is null or p_expires <= now() or p_expires > now()+interval '2 hours 1 minute' then
     raise exception 'invalid_submission';
   end if;

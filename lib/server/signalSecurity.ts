@@ -90,12 +90,12 @@ export function verifyAttempt(
 export function validateInitials(value: unknown): string {
   if (
     typeof value !== "string" ||
-    !/^[A-Z]{2,3}$/.test(value) ||
+    !/^[A-Z]{1,5}$/.test(value) ||
     ["ASS", "KKK", "FUK", "FCK", "WTF", "SEX"].includes(value)
   )
     throw new HttpError(
       400,
-      "Use two or three suitable uppercase initials.",
+      "Use initials or a nickname with one to five uppercase letters.",
       "invalid_initials",
     );
   return value;

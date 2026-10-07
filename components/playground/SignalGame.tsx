@@ -1,4 +1,5 @@
 "use client";
+import { playerName } from "@/lib/puzzle/playerName";
 import Link from "next/link";
 import SaveDiscovery from "@/components/SaveDiscovery";
 import { accountHeaders } from "@/lib/accountClient";
@@ -267,9 +268,9 @@ export default function SignalGame({
       setNotice(
         result.rank
           ? result.count === 1
-            ? `First entry for ${result.day}! Saved as ${result.alias}.`
-            : `Saved as ${result.alias}. Rank ${result.rank} for ${result.day} at submission time.`
-          : `Saved as ${result.alias}. Your rank is temporarily unavailable.`,
+            ? `First entry for ${result.day}! Saved as ${playerName(result.alias)}.`
+            : `Saved as ${playerName(result.alias)}. Rank ${result.rank} for ${result.day} at submission time.`
+          : `Saved as ${playerName(result.alias)}. Your rank is temporarily unavailable.`,
       );
     } catch (error) {
       if (alive.current)
@@ -446,10 +447,10 @@ export default function SignalGame({
       {state.solved && ticket && !posted && (
         <form className="sg-publish" onSubmit={publish}>
           <label htmlFor="signal-initials">
-            Add your initials to the leaderboard
+            Use initials or a nickname (up to 5 letters)
           </label>
           <p>
-            Optional. Your initials and score become public. A private browser
+            Optional. Your name and score become public. A private browser
             cookie remembers you on this device, not across devices. Clearing
             browser data loses access to this identity. Remove your scores from
             the leaderboard below while the cookie remains.
@@ -464,16 +465,16 @@ export default function SignalGame({
                   e.target.value
                     .toUpperCase()
                     .replace(/[^A-Z]/g, "")
-                    .slice(0, 3),
+                    .slice(0, 5),
                 )
               }
-              minLength={2}
-              maxLength={3}
-              pattern="[A-Z]{2,3}"
+              minLength={1}
+              maxLength={5}
+              pattern="[A-Z]{1,5}"
               autoComplete="off"
-              placeholder="GS"
+              placeholder="GOBI"
               required
-              aria-label="Your initials, two or three letters"
+              aria-label="Initials or nickname, one to five letters"
             />
             <button
               className="pg-button pg-primary"

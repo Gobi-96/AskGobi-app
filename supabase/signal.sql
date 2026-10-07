@@ -9,7 +9,7 @@ create table if not exists public.signal_boards (
 );
 create table if not exists public.signal_guests (
   guest_hash text primary key check (guest_hash ~ '^[a-f0-9]{64}$'),
-  alias text not null unique check (alias ~ '^[A-Z]{2,3}-[0-9A-F]{8}$')
+  alias text not null unique check (alias ~ '^[A-Z]{1,5}-[0-9A-F]{8}$')
 );
 create table if not exists public.signal_scores (
   guest_hash text not null references public.signal_guests on delete cascade,
@@ -53,7 +53,7 @@ returns jsonb language plpgsql security definer set search_path = '' as $$
 declare previous public.signal_receipts%rowtype; minimum integer; computed integer;
   result jsonb; public_alias text; best public.signal_scores%rowtype;
 begin
-  if p_initials is null or p_initials !~ '^[A-Z]{2,3}$' or p_initials in ('ASS','KKK','FUK','FCK','WTF','SEX') or
+  if p_initials is null or p_initials !~ '^[A-Z]{1,5}$' or p_initials in ('ASS','KKK','FUK','FCK','WTF','SEX') or
      p_moves is null or p_moves not between 1 and 256 or p_expires is null or p_expires <= now() or p_expires > now()+interval '2 hours 1 minute' then
     raise exception 'invalid_submission';
   end if;
@@ -100,7 +100,7 @@ begin
       (p_period='week' and s.day >= p_day - ((extract(isodow from p_day)::integer)-1)))
     group by g.guest_hash,g.alias
   ), ranked as (
-    select *,rank() over(order by case when p_period='day' then moves else -points end)::integer as position from totals
+    select *,dense_rank() over(order by case when p_period='day' then moves else -points end)::integer as position from totals
   ), first_entries as (
     select * from ranked order by position,alias limit 25
   )
