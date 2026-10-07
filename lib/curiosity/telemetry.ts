@@ -7,6 +7,13 @@ export const eventNames = [
   "verdict_stumped",
   "verdict_unsure",
   "share_intent",
+  "build_details_open",
+  "contact_intent",
+  "puzzle_start",
+  "puzzle_complete",
+  "puzzle_replay",
+  "leaderboard_post",
+  "coach_use",
 ] as const;
 export type EventName = (typeof eventNames)[number];
 export function track(event: EventName) {
