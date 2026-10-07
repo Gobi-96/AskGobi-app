@@ -3,14 +3,15 @@ import { entryActivity, getCard } from "@/lib/curiosity/cards";
 import type { Metadata } from "next";
 import { generate, validDay } from "@/lib/puzzle/engine";
 
-export function generateMetadata({
+export async function generateMetadata({
   searchParams,
 }: {
-  searchParams: { card?: string; puzzle?: string; daily?: string };
-}): Metadata {
-  const card = getCard(searchParams.card);
+  searchParams: Promise<{ card?: string; puzzle?: string; daily?: string }>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const card = getCard(params.card);
   if (!card) {
-    const id = puzzleEntry(searchParams);
+    const id = puzzleEntry(params);
     if (!id) return {};
     const title = "Connect the Signal · AskGobi";
     const description =
@@ -38,18 +39,19 @@ export function generateMetadata({
   };
 }
 
-export default function Home({
+export default async function Home({
   searchParams,
 }: {
-  searchParams: {
+  searchParams: Promise<{
     card?: string;
     challenge?: string;
     puzzle?: string;
     daily?: string;
-  };
+  }>;
 }) {
-  const entry = entryActivity(searchParams);
-  const puzzleId = puzzleEntry(searchParams);
+  const params = await searchParams;
+  const entry = entryActivity(params);
+  const puzzleId = puzzleEntry(params);
   return (
     <Playground
       key={`${entry.card?.id ?? puzzleId ?? "random"}-${entry.challenge}`}

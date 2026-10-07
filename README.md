@@ -164,9 +164,10 @@ Changing the v1 generator would break existing shares: preserve it and add a new
 puzzle version for future rule/generation changes.
 
 See [release instructions](docs/RELEASE.md) for rollout, rollback, authentication
-checks, telemetry setup, and the first-week review. A known inherited dependency
-security gate must be resolved before public rollout. The feature work does not
-migrate hosting or replace the existing private chat database.
+checks, telemetry setup, and the first-week review. Local validation now reports
+zero known dependency vulnerabilities; rerun the audit and complete the
+authentication, staging and host gates before public rollout. The feature work
+does not migrate hosting or replace the existing private chat database.
 
 Automated tests use in-process synthetic responses and never download or start a
 model. One-off local model runners and browser fixtures are not part of the source.
