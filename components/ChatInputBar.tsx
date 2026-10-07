@@ -12,10 +12,11 @@ interface ChatInputBarProps {
   onlineMode: boolean;
   setOnlineMode: (value: boolean) => void;
   autoFocus?: boolean;
+  disabled?: boolean;
 }
 
 export default function ChatInputBar({ question, setQuestion, thinking, abortController,
-  askGobi, onlineMode, setOnlineMode, autoFocus = false }: ChatInputBarProps) {
+  askGobi, onlineMode, setOnlineMode, autoFocus = false, disabled = false }: ChatInputBarProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const automaticSearch = needsWebSearch(question);
   const searchEnabled = onlineMode || automaticSearch;
@@ -23,7 +24,7 @@ export default function ChatInputBar({ question, setQuestion, thinking, abortCon
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
     // Keep the visitor's next draft intact while a response is still arriving.
-    if (thinking || !question.trim()) return;
+    if (disabled || thinking || !question.trim()) return;
     askGobi(question.trim(), searchEnabled);
     setQuestion("");
   };
@@ -37,6 +38,7 @@ export default function ChatInputBar({ question, setQuestion, thinking, abortCon
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) {
+      event.preventDefault();
       handleSubmit(event);
     }
   };
@@ -56,7 +58,7 @@ export default function ChatInputBar({ question, setQuestion, thinking, abortCon
         <div className="chat-send-tools">
           {question.length > 400 && <span className="chat-counter">{question.length}/500</span>}
           <button type={thinking ? "button" : "submit"} className={`chat-send ${thinking ? "is-stopping" : ""}`}
-            disabled={!thinking && !question.trim()} onClick={thinking ? () => abortController?.abort() : undefined}
+            disabled={disabled || (!thinking && !question.trim())} onClick={thinking ? () => abortController?.abort() : undefined}
             aria-label={thinking ? "Stop response" : "Send question"}>
             {thinking ? <Square size={14} fill="currentColor" aria-hidden="true" /> : <ArrowUp size={19} aria-hidden="true" />}
             <span>{thinking ? "Stop" : "Ask"}</span>

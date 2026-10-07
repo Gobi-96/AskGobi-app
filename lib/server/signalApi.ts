@@ -1,3 +1,4 @@
+import { accountUser, accountPlayer, syncEnabled } from "./account";
 import { generate, utcDay, validDay } from "../puzzle/engine";
 import {
   HttpError,
@@ -45,11 +46,14 @@ export function createSignalApi(deps: Dependencies = {}) {
           "rate_limited",
         );
       const existing = guestToken(req);
+      const user = syncEnabled() ? await accountUser(req) : null;
+      const player = user ? await accountPlayer(user, operation === "score") : null;
+      const identity = user ? player : existing ? digest(existing) : null;
       if (operation === "player") {
-        if (req.method === "GET") return json({ hasIdentity: !!existing });
+        if (req.method === "GET") return json({ hasIdentity: !!identity });
         if (req.method !== "DELETE")
           throw new HttpError(405, "Method not allowed.");
-        if (existing) await store.remove(digest(existing));
+        if (identity) await store.remove(identity);
         return json(
           { removed: true },
           { "Set-Cookie": guestCookie("", req, true) },
@@ -84,7 +88,7 @@ export function createSignalApi(deps: Dependencies = {}) {
           await store.rankings(
             period,
             today,
-            existing ? digest(existing) : null,
+            identity,
           ),
         );
       }
@@ -118,7 +122,7 @@ export function createSignalApi(deps: Dependencies = {}) {
         );
       const score = verifyScore(board, value.moves);
       const token = existing ?? publicationToken(attempt, secret),
-        guestHash = digest(token);
+        guestHash = identity ?? digest(token);
       const saved = await store.publish({
         ...score,
         nonce: attempt.nonce,
@@ -134,7 +138,7 @@ export function createSignalApi(deps: Dependencies = {}) {
       } catch {}
       return json(
         { ...saved, ...placement },
-        { "Set-Cookie": guestCookie(token, req) },
+        user ? {} : { "Set-Cookie": guestCookie(token, req) },
       );
     } catch (error) {
       const controlled =

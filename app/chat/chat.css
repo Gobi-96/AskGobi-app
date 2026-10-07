@@ -32,8 +32,7 @@
 .chat-home-link { display: inline-flex; gap: 5px; align-items: center; font-size: 13px; color: var(--chat-muted); min-height: 44px; }
 .chat-workspace aside { border-color: var(--chat-line); }
 .chat-workspace aside button { min-height: 40px; }
-.chat-workspace aside button[aria-label="Close menu"],
-.chat-header button[aria-label="Toggle color theme"] { width: 44px; height: 44px; }
+.chat-workspace aside button[aria-label="Close menu"] { width: 44px; height: 44px; }
 .chat-stage { min-width: 0; display: flex; flex-direction: column; padding-top: 76px; }
 .chat-scroll { overflow-y: auto; min-height: 0; flex: 1; overscroll-behavior: contain; padding: 28px 28px 20px; }
 .chat-stage.is-empty .chat-scroll { display: flex; flex-direction: column; }

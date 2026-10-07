@@ -246,3 +246,49 @@ first-week monitor has been scheduled, because the release date is not yet known
 
 The home server still determines site uptime. Curated cards work during a model
 outage as long as the website itself is reachable.
+
+## Curiosity journey and private accounts
+
+Roll out the new opening quiz, personal introduction, visible daily challenge,
+result card and contextual chat first with `ACCOUNT_SYNC_ENABLED=false`.
+Shared card/puzzle/daily URLs and anonymous play continue to work.
+
+For the second release, apply `supabase/curiosity_accounts.sql` after `signal.sql`.
+It is additive and may be reapplied. Auth and account data must use the same
+Supabase project (`SUPABASE_URL` must match `NEXT_PUBLIC_SUPABASE_URL`). Then set
+`ACCOUNT_SYNC_ENABLED=true` on the server. Use a separate staging environment with
+its own Auth users; do not combine production Auth tokens with staging scores.
+Apply `curiosity_journey_events.sql` after the three existing telemetry migrations.
+
+`GET/POST /api/me/progress` reads private progress or saves a known card / a
+server-replayed completed puzzle. `POST /api/me/claim` associates an existing
+published guest result using the HttpOnly guest cookie. Both require a verified
+Supabase bearer token; request bodies never select the account. Signed-in public
+score publication and removal use a server-only canonical player identity.
+Account saving never publishes a score. Guest claims are atomic and idempotent;
+daily scores merge by minimum moves. Claimed guest tickets become tombstones.
+Unfinished runs and historical local counts are not uploaded as verified results.
+
+The shared header renews sessions when refresh tokens are available. Existing
+access-token-only sessions may need one new sign-in. OAuth continues to use the
+already configured root redirect. This browser remembers the originating activity;
+a magic link opened on another device starts at the homepage. Chat histories and
+project schemas retain their existing RLS. Account sync can be disabled independently
+without dropping account or chat data.
+
+Run `npm test`, `npm run typecheck`, `npm run build`, and
+`PGLITE_MODULE=<installed module> node scripts/test-account-db.mjs`.
+See the test report for staging evidence. Field performance, real assistive-
+technology checks and five unfamiliar mobile users remain human/host release gates.
+
+
+### AI-first homepage review
+
+The homepage now reuses the streaming chat hook, save behavior and `/api/ask`
+contract. This presentation change needs no additional database migration.
+Check inline ask, stop/retry, follow-ups, guest continuation, signed-in saved-chat
+continuation, account changes, and contextual card IDs before release. Guest
+continuation is tab-local and expires after 15 minutes; unavailable storage must
+show a recovery choice instead of silently dropping the answer. Shared activity
+URLs still put their linked activity first. Keep the original model settings and
+check starter answer quality and latency on the deployment Mac.

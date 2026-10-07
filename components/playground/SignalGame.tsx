@@ -1,5 +1,7 @@
 "use client";
 import Link from "next/link";
+import SaveDiscovery from "@/components/SaveDiscovery";
+import { accountHeaders } from "@/lib/accountClient";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowRight, MessageCircle, RotateCw, Share2 } from "lucide-react";
 import {
@@ -8,6 +10,7 @@ import {
   hint,
   MAX_MOVES,
   ports,
+  points,
   readPuzzle,
   replay,
   signal,
@@ -31,11 +34,13 @@ import "./signal.css";
 
 export type SignalFlags = { leaderboard: boolean; coach: boolean };
 async function jsonRequest(path: string, body?: unknown, abort?: AbortSignal) {
+  const auth = await accountHeaders();
   const response = await fetch(path, {
+    headers: auth,
     ...(body !== undefined
       ? {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { ...auth, "Content-Type": "application/json" },
           body: JSON.stringify(body),
         }
       : {}),
@@ -301,8 +306,13 @@ export default function SignalGame({
         Connect the Signal
       </h2>
       <p className="sg-instructions">
-        Tap the tiles. Connect the blue signal to <strong>G</strong>.
+        Turn the tiles. Connect the signal. A new board every day.
       </p>
+      <div className="sg-mode">
+        <p>{ticket ? "Ranked · no hints · publication is optional" : "Practice · hints available · no public score"}</p>
+        {flags.leaderboard && !ticket && <button className="pg-button pg-primary" disabled={pending || posting || removing} onClick={() => void daily()}>{pending ? "Opening…" : "Start today’s ranked attempt"}</button>}
+        {ticket && <button className="pg-small-link" disabled={pending || posting || removing} onClick={() => begin(puzzle)}>Switch to practice</button>}
+      </div>
       <div className="sg-board-shell">
         <span
           className="sg-terminal sg-source"
@@ -367,6 +377,8 @@ export default function SignalGame({
             Shortest route: {puzzle.minimum}. Your best on this board:{" "}
             {progress.best[puzzle.id] ?? moves.length}.
           </p>
+          <strong className="sg-score">{points(puzzle.minimum, moves.length)} points</strong>
+          <SaveDiscovery key={puzzle.id} puzzleId={puzzle.id} moves={moves} />
         </div>
       ) : (
         <>

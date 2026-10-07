@@ -23,6 +23,7 @@ import ChatMessages from "@/components/ChatMessages";
 import EmptyChatScreen from "@/components/EmptyChatScreen";
 import { useAskGobi } from "@/app/hooks/useAskGobi";
 import { requestAuthModal, requestAuthSignOut } from "@/lib/supabaseAuth";
+import { CHAT_HANDOFF_KEY, readChatHandoff } from "@/lib/curiosity/chatHandoff";
 import { getCard } from "@/lib/curiosity/cards";
 import Link from "next/link";
 import "./chat.css";
@@ -30,6 +31,9 @@ import "./chat.css";
 export default function HomePage() {
   const {
     messages,
+    setMessages,
+    currentUserId,
+    historyReady,
     thinking,
     isTyping,
     thinkingLabel,
@@ -54,6 +58,27 @@ export default function HomePage() {
     renameConversationById,
     deleteConversationById,
   } = useAskGobi();
+
+  const openedFromLink = useRef(false);
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("conversation");
+    if (id && isAuthed && !historyLoading && !openedFromLink.current && conversations.some(c=>c.id===id)) {
+      openedFromLink.current=true; void openConversation(id);
+    }
+  }, [isAuthed, historyLoading, conversations, openConversation]);
+
+  const restoredHomeAnswer = useRef(false);
+  useEffect(() => {
+    if (!historyReady || historyLoading || restoredHomeAnswer.current) return;
+    restoredHomeAnswer.current = true;
+    if (new URLSearchParams(window.location.search).get("from") !== "home") return;
+    try {
+      const raw = sessionStorage.getItem(CHAT_HANDOFF_KEY);
+      sessionStorage.removeItem(CHAT_HANDOFF_KEY);
+      const handoff = readChatHandoff(raw, currentUserId);
+      if (handoff) setMessages(handoff.exchanges.map(exchange => ({ ...exchange, answerHistory: [exchange.answer], answerIndex: 0, status: "complete" })));
+    } catch { /* The full chat remains usable when tab storage is unavailable. */ }
+  }, [historyReady, historyLoading, currentUserId, setMessages]);
 
   const { resolvedTheme: theme } = useTheme();
   const [mounted, setMounted] = useState(false);
